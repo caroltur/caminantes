@@ -30,7 +30,7 @@ import { firebaseClient } from "@/lib/firebase/client"
 const accessCodeFormSchema = z.object({
   document_id: z.string().min(5, "El número de documento es requerido"),
   people_count: z.coerce.number().min(1, "Debe haber al menos 1 persona").max(20, "Máximo 20 personas por grupo"),
-  payment_image: z.any().optional(), // <-- CORRECCIÓN AQUÍ: Usamos z.any()
+  payment_image: z.instanceof(FileList).optional(), // <-- Mejoramos la seguridad de tipos usando z.instanceof(FileList)
 })
 
 type AccessCode = {
@@ -344,7 +344,10 @@ export default function PaymentControl() {
                           <Input
                             type="file"
                             accept="image/*"
-                            onChange={(e) => onChange(e.target.files)}
+                            onChange={(e) => {
+                              const files = e.target.files;
+                              onChange(files instanceof FileList ? files : null);
+                            }}
                             {...field}
                           />
                         </FormControl>

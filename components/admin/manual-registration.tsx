@@ -80,7 +80,12 @@ export default function ManualRegistration() {
 
     try {
       // Generate a unique code based on role
-      const rolePrefix = data.role === "logistica" ? "LOG" : data.role === "guia" ? "GUIA" : "STAFF"
+      const rolePrefixMap: Record<string, string> = {
+        logistica: "LOG",
+        guia: "GUIA",
+        staff: "STAFF",
+      };
+      const rolePrefix = rolePrefixMap[data.role] || "STAFF";
       const code = `${rolePrefix}-${Date.now().toString().slice(-4)}`
       setGeneratedCode(code)
 
