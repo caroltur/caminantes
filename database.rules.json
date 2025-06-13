@@ -1,0 +1,37 @@
+{
+  "rules": {
+    "routes": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["name", "difficulty"]
+    },
+    "registrations": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["document_id", "route_id", "payment_status", "created_at"]
+    },
+    "access_codes": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["document_id", "access_code", "status", "created_at"]
+    },
+    "payments": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["document_id", "created_at"]
+    },
+    "gallery": {
+      ".read": true,
+      ".write": true
+    },
+    "settings": {
+      ".read": true,
+      ".write": true
+    },
+    "event_schedule": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["order", "day"]
+    }
+  }
+}

@@ -1,0 +1,8 @@
+[
+    {
+      "origin": ["http://localhost:3000"],
+      "method": ["GET", "POST", "DELETE", "PUT", "PATCH", "OPTIONS"],
+      "header": ["Content-Type", "Authorization", "X-Firebase-Storage-Version", "X-Requested-With"],
+      "maxAgeSeconds": 3600
+    }
+  ]

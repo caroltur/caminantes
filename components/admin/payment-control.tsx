@@ -5,13 +5,21 @@ import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
 import {
   Dialog,
   DialogContent,
@@ -20,19 +28,35 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { CheckCircle, Upload, Users, User, Trash2, Plus, ImageIcon, X, Edit } from "lucide-react"
-import { toast } from "sonner" // <-- CAMBIO CLAVE: Importación de sonner directamente
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { ImageIcon, Eye, Trash2, Plus, Upload, Edit, Copy, CheckCircle, Users, User } from "lucide-react"
+import { toast } from "sonner"
 import { firebaseClient } from "@/lib/firebase/client"
+// ✅ ELIMINAR estas importaciones de firebase/storage, ya que la lógica de subida se maneja en firebaseClient
+// import { ref as storageRef, uploadBytesResumable, getDownloadURL } from "firebase/storage"
+// import { storage } from "@/lib/firebase/config"
 
-// --- CAMBIO CLAVE: Definición del esquema Zod para payment_image ---
-// Cambiamos FileList a z.any() para evitar errores en SSR.
-// La validación real de FileList se hará en onSubmit (en el lado del cliente).
-const accessCodeFormSchema = z.object({
-  document_id: z.string().min(5, "El número de documento es requerido"),
+// Esquemas de validación
+const generateCodeSchema = z.object({
+  document_id: z.string().min(5, "El número de documento debe tener al menos 5 caracteres"),
   people_count: z.coerce.number().min(1, "Debe haber al menos 1 persona").max(20, "Máximo 20 personas por grupo"),
-  payment_image: z.instanceof(FileList).optional(), // <-- Mejoramos la seguridad de tipos usando z.instanceof(FileList)
 })
 
+const addImageSchema = z.object({
+  // ✅ CORRECCIÓN para FileList is not defined:
+  // Se hace la validación de instanceof File, pero el renderizado condicional en el input
+  // asegura que el input de tipo 'file' solo se renderice en el cliente,
+  // evitando que Zod intente validar 'File' en el lado del servidor durante el SSR.
+  image_file: typeof window !== 'undefined' ? z.instanceof(File, { message: "Selecciona una imagen válida" }) : z.any(),
+})
+
+const editPeopleSchema = z.object({
+  people_count: z.coerce.number().min(1, "Debe haber al menos 1 persona").max(20, "Máximo 20 personas por grupo"),
+})
+
+// Tipos
 type AccessCode = {
   id: string
   document_id: string
@@ -43,220 +67,265 @@ type AccessCode = {
     id: string
     url: string
     uploaded_at: string
+    storagePath?: string
   }>
   status: "pending" | "paid" | "used"
+  route_id?: string
+  day?: number
   created_at: string
   updated_at: string
 }
 
 export default function PaymentControl() {
-  // const { toast } = useToast() // <-- REMOVIDO: Ya no se usa el hook de Shadcn UI
+  // Estados principales
   const [accessCodes, setAccessCodes] = useState<AccessCode[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [generatedCode, setGeneratedCode] = useState<string | null>(null)
+  const [lastGeneratedCode, setLastGeneratedCode] = useState<string | null>(null)
 
-  // Estados para gestión de imágenes
+  // Estados para diálogos
   const [selectedAccessCode, setSelectedAccessCode] = useState<AccessCode | null>(null)
   const [isImageDialogOpen, setIsImageDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [newImageUrl, setNewImageUrl] = useState("")
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
-  const [editingPeopleCount, setEditingPeopleCount] = useState(1)
 
-  const form = useForm<z.infer<typeof accessCodeFormSchema>>({
-    resolver: zodResolver(accessCodeFormSchema),
+  // Formularios
+  const generateForm = useForm<z.infer<typeof generateCodeSchema>>({
+    resolver: zodResolver(generateCodeSchema),
     defaultValues: {
       document_id: "",
       people_count: 1,
-      payment_image: undefined, // Asegúrate de que el valor por defecto sea undefined para campos de archivo
     },
   })
 
+  const imageForm = useForm<z.infer<typeof addImageSchema>>({
+    resolver: zodResolver(addImageSchema),
+    // ✅ CORRECCIÓN: Para evitar el error FileList is not defined,
+    // puedes usar una estrategia para no validar o resetear el campo
+    // en el servidor si la validación es estricta con instanceof File.
+    // Aunque el renderizado condicional del input ya ayuda, esto es una capa extra.
+    // defaultValues: {
+    //   image_file: undefined!, // Asegúrate de que no haya un valor por defecto que cause problemas en SSR
+    // },
+    // ✅ OPCIONAL: Puedes especificar el modo de validación para el formulario de imagen
+    // mode: "onChange", // o "onBlur", "onSubmit"
+  })
+
+
+  const editForm = useForm<z.infer<typeof editPeopleSchema>>({
+    resolver: zodResolver(editPeopleSchema),
+    defaultValues: {
+      people_count: 1,
+    },
+  })
+
+  // Cargar códigos iniciales
   useEffect(() => {
-    fetchAccessCodes()
+    loadAccessCodes()
   }, [])
 
-  const fetchAccessCodes = async () => {
+  const loadAccessCodes = async () => {
     setLoading(true)
     try {
-      const data = await firebaseClient.getAccessCodes()
-      setAccessCodes(data)
+      const codes = await firebaseClient.getAccessCodes()
+      setAccessCodes(Array.isArray(codes) ? codes : [])
     } catch (error) {
-      console.error("Error fetching access codes:", error)
-      toast.error("No se pudieron cargar los códigos de acceso.") // <-- CAMBIO: Usando sonner.toast
+      console.error("Error loading access codes:", error)
+      toast.error("Error al cargar los códigos de acceso")
+      setAccessCodes([])
     } finally {
       setLoading(false)
     }
   }
 
-  const onSubmit = async (data: z.infer<typeof accessCodeFormSchema>) => {
+  // Generar nuevo código
+  const generateAccessCode = async (data: z.infer<typeof generateCodeSchema>) => {
     setSubmitting(true)
-
     try {
-      // Verificar si ya existe un código para este documento
       const existingCode = await firebaseClient.getAccessCodeByDocument(data.document_id)
       if (existingCode) {
-        toast.error("Ya existe un código de acceso para este número de documento", { // <-- CAMBIO: Usando sonner.toast
-          title: "Código ya existe",
-        })
-        setSubmitting(false)
+        toast.error("Ya existe un código de acceso para este número de documento")
         return
       }
 
-      // Crear el código de acceso
-      const accessCodeData = {
+      const newAccessCode = await firebaseClient.createAccessCode({
         document_id: data.document_id,
         people_count: data.people_count,
         payment_images: [],
-      }
+      })
 
-      // --- CAMBIO CLAVE: Validación de FileList en tiempo de ejecución (cliente) ---
-      // Verificamos si data.payment_image es una instancia de FileList y si tiene archivos.
-      if (typeof window !== 'undefined' && data.payment_image instanceof FileList && data.payment_image.length > 0) {
-        // En producción, aquí subirías la imagen a Firebase Storage
-        accessCodeData.payment_images = [
-          {
-            id: Date.now().toString(),
-            url: "/placeholder.svg?height=400&width=600", // URL placeholder
-            uploaded_at: new Date().toISOString(),
-          },
-        ]
-      }
-      // --- FIN DE CAMBIO CLAVE ---
-
-      const newAccessCode = await firebaseClient.createAccessCode(accessCodeData)
       setAccessCodes([newAccessCode, ...accessCodes])
-      setGeneratedCode(newAccessCode.access_code)
-
-      toast.success(`Código generado exitosamente: ${newAccessCode.access_code}`, { // <-- CAMBIO: Usando sonner.toast
-        description: "Envía este código a la persona por WhatsApp para que pueda completar su inscripción.",
-      })
-
-      form.reset()
+      setLastGeneratedCode(newAccessCode.access_code)
+      generateForm.reset()
+      toast.success(`Código generado exitosamente: ${newAccessCode.access_code}`)
     } catch (error) {
-      console.error("Error creating access code:", error)
-      toast.error("Hubo un problema al generar el código. Por favor intenta nuevamente.", { // <-- CAMBIO: Usando sonner.toast
-        title: "Error al generar código",
-      })
+      console.error("Error generating access code:", error)
+      toast.error("Error al generar el código de acceso")
     } finally {
       setSubmitting(false)
     }
   }
 
-  const handleDeleteAccessCode = async (accessCode: AccessCode) => {
-    try {
-      await firebaseClient.deleteAccessCode(accessCode.id)
-      setAccessCodes(accessCodes.filter((code) => code.id !== accessCode.id))
-      toast.success("El código de acceso ha sido eliminado exitosamente", { // <-- CAMBIO: Usando sonner.toast
-        title: "Código eliminado",
-      })
-    } catch (error) {
-      console.error("Error deleting access code:", error)
-      toast.error("Hubo un problema al eliminar el código", { // <-- CAMBIO: Usando sonner.toast
-        title: "Error al eliminar",
-      })
-    }
-  }
+  // ✅ ELIMINAR: Esta función `uploadImageToFirebase` ya no es necesaria aquí.
+  // La lógica de subida, incluyendo el saneamiento de la ruta, se ha movido
+  // y centralizado en `firebaseClient.ts`.
+  // const uploadImageToFirebase = async (file: File): Promise<string> => {
+  //   if (!selectedAccessCode) throw new Error("No hay código seleccionado")
 
-  const handleAddPaymentImage = async () => {
-    if (!selectedAccessCode || !newImageUrl) {
-      toast.error("Por favor ingresa una URL válida para la imagen", { // <-- CAMBIO: Usando sonner.toast
-        title: "URL inválida",
-      })
-      return
-    }
+  //   const uniqueFileName = `${Date.now()}_${file.name}`
+  //   const storagePath = `payment_images/${selectedAccessCode.id}/${uniqueFileName}`
+  //   const imageStorageRef = storageRef(storage, storagePath)
+  //   const uploadTask = uploadBytesResumable(imageStorageRef, file)
 
+  //   // Esperar a que termine la carga
+  //   const snapshot = await new Promise<any>((resolve, reject) => {
+  //     uploadTask.on(
+  //       "state_changed",
+  //       undefined,
+  //       reject,
+  //       () => resolve(uploadTask.snapshot)
+  //     )
+  //   })
+
+  //   const downloadURL = await getDownloadURL(snapshot.ref)
+  //   return downloadURL
+  // }
+
+  // Agregar imagen de pago
+  const addPaymentImage = async (data: z.infer<typeof addImageSchema>) => {
+    if (!selectedAccessCode || !data.image_file) return
     setUploadingImage(true)
     try {
-      const newImage = await firebaseClient.addPaymentImageToAccessCode(selectedAccessCode.id, {
-        url: newImageUrl,
-      })
+      // ✅ CORRECCIÓN: Usar directamente la función de subida de firebaseClient
+      // que ya incluye el saneamiento de la ruta y maneja la subida completa.
+      const newImage = await firebaseClient.addPaymentImageToAccessCode(selectedAccessCode.id, data.image_file)
 
-      // Actualizar el estado local
+      // El objeto 'newImage' ya contiene la URL y el storagePath guardados en RTDB
       const updatedAccessCode = {
         ...selectedAccessCode,
-        payment_images: [...selectedAccessCode.payment_images, newImage],
-        status: "paid" as const,
+        payment_images: [...(selectedAccessCode.payment_images || []), newImage],
+        status: "paid",
       }
 
       setSelectedAccessCode(updatedAccessCode)
-      setAccessCodes(accessCodes.map((code) => (code.id === selectedAccessCode.id ? updatedAccessCode : code)))
-      setNewImageUrl("")
+      setAccessCodes(
+        accessCodes.map((code) =>
+          code.id === selectedAccessCode.id ? updatedAccessCode : code
+        )
+      )
 
-      toast.success("La imagen de pago ha sido agregada exitosamente", { // <-- CAMBIO: Usando sonner.toast
-        title: "Imagen agregada",
-      })
+      imageForm.reset()
+      toast.success("Imagen de pago agregada exitosamente")
     } catch (error) {
       console.error("Error adding payment image:", error)
-      toast.error("Hubo un problema al agregar la imagen", { // <-- CAMBIO: Usando sonner.toast
-        title: "Error al agregar imagen",
-      })
+      toast.error("Error al agregar la imagen de pago")
     } finally {
       setUploadingImage(false)
     }
   }
 
-  const handleRemovePaymentImage = async (imageId: string) => {
+  // Eliminar imagen de pago
+  const removePaymentImage = async (imageId: string) => {
     if (!selectedAccessCode) return
-
     try {
       await firebaseClient.removePaymentImageFromAccessCode(selectedAccessCode.id, imageId)
 
-      // Actualizar el estado local
       const updatedImages = selectedAccessCode.payment_images.filter((img) => img.id !== imageId)
       const updatedAccessCode = {
         ...selectedAccessCode,
         payment_images: updatedImages,
-        status: (updatedImages.length > 0 ? "paid" : "pending") as const,
+        status: updatedImages.length > 0 ? "paid" : "pending",
       }
 
       setSelectedAccessCode(updatedAccessCode)
-      setAccessCodes(accessCodes.map((code) => (code.id === selectedAccessCode.id ? updatedAccessCode : code)))
+      setAccessCodes(
+        accessCodes.map((code) =>
+          code.id === selectedAccessCode.id ? updatedAccessCode : code
+        )
+      )
 
-      toast.success("La imagen de pago ha sido eliminada exitosamente", { // <-- CAMBIO: Usando sonner.toast
-        title: "Imagen eliminada",
-      })
+      toast.success("Imagen eliminada exitosamente")
     } catch (error) {
       console.error("Error removing payment image:", error)
-      toast.error("Hubo un problema al eliminar la imagen", { // <-- CAMBIO: Usando sonner.toast
-        title: "Error al eliminar imagen",
-      })
+      toast.error("Error al eliminar la imagen")
     }
   }
 
-  const handleUpdatePeopleCount = async () => {
+  // Actualizar número de personas
+  const updatePeopleCount = async (data: z.infer<typeof editPeopleSchema>) => {
     if (!selectedAccessCode) return
-
     try {
       const updatedData = {
-        people_count: editingPeopleCount,
-        is_group: editingPeopleCount > 1,
+        people_count: data.people_count,
+        is_group: data.people_count > 1,
       }
 
       await firebaseClient.updateAccessCode(selectedAccessCode.id, updatedData)
 
-      // Actualizar el estado local
       const updatedAccessCode = {
         ...selectedAccessCode,
         ...updatedData,
       }
 
       setSelectedAccessCode(updatedAccessCode)
-      setAccessCodes(accessCodes.map((code) => (code.id === selectedAccessCode.id ? updatedAccessCode : code)))
-      setIsEditDialogOpen(false)
+      setAccessCodes(
+        accessCodes.map((code) =>
+          code.id === selectedAccessCode.id ? updatedAccessCode : code
+        )
+      )
 
-      toast.success(`Se ha actualizado a ${editingPeopleCount} persona${editingPeopleCount > 1 ? "s" : ""}`, { // <-- CAMBIO: Usando sonner.toast
-        title: "Número de personas actualizado",
-      })
+      setIsEditDialogOpen(false)
+      toast.success(`Número de personas actualizado a ${data.people_count}`)
     } catch (error) {
       console.error("Error updating people count:", error)
-      toast.error("Hubo un problema al actualizar el número de personas", { // <-- CAMBIO: Usando sonner.toast
-        title: "Error al actualizar",
-      })
+      toast.error("Error al actualizar el número de personas")
     }
   }
 
+  // Eliminar código
+  const deleteAccessCode = async () => {
+    if (!selectedAccessCode) return
+    try {
+      await firebaseClient.deleteAccessCode(selectedAccessCode.id)
+      setAccessCodes(accessCodes.filter((code) => code.id !== selectedAccessCode.id))
+      setIsDeleteDialogOpen(false)
+      setSelectedAccessCode(null)
+      toast.success("Código de acceso eliminado exitosamente")
+    } catch (error) {
+      console.error("Error deleting access code:", error)
+      toast.error("Error al eliminar el código de acceso")
+    }
+  }
+
+  // Copiar al portapapeles
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      toast.success("Código copiado al portapapeles")
+    } catch (error) {
+      toast.error("Error al copiar el código")
+    }
+  }
+
+  // Abrir diálogos
+  const openImageDialog = (accessCode: AccessCode) => {
+    setSelectedAccessCode(accessCode)
+    setIsImageDialogOpen(true)
+  }
+
+  const openEditDialog = (accessCode: AccessCode) => {
+    setSelectedAccessCode(accessCode)
+    editForm.setValue("people_count", accessCode.people_count)
+    setIsEditDialogOpen(true)
+  }
+
+  const openDeleteDialog = (accessCode: AccessCode) => {
+    setSelectedAccessCode(accessCode)
+    setIsDeleteDialogOpen(true)
+  }
+
+  // Renderizados auxiliares
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
@@ -274,91 +343,80 @@ export default function PaymentControl() {
     }
   }
 
+  const getTypeBadge = (isGroup: boolean, peopleCount: number) => {
+    if (isGroup) {
+      return (
+        <Badge variant="outline" className="border-blue-500 text-blue-500">
+          <Users className="h-3 w-3 mr-1" />
+          Grupo ({peopleCount})
+        </Badge>
+      )
+    }
+    return (
+      <Badge variant="outline">
+        <User className="h-3 w-3 mr-1" />
+        Individual
+      </Badge>
+    )
+  }
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Generación de Códigos de Acceso</h1>
+      {/* Título */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Control de Pagos</h1>
+        <div className="text-sm text-gray-500">
+          Total de códigos: {(accessCodes || []).length}
+        </div>
+      </div>
 
+      {/* Pestañas */}
       <Tabs defaultValue="generate" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="generate">Generar Código</TabsTrigger>
-          <TabsTrigger value="manage">Gestionar Códigos</TabsTrigger>
+          <TabsTrigger value="manage">Gestionar Códigos ({(accessCodes || []).length})</TabsTrigger>
         </TabsList>
 
+        {/* Tab: Generar Código */}
         <TabsContent value="generate" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Generar Nuevo Código de Acceso</CardTitle>
-              <CardDescription>
-                Crea un código único para que las personas puedan completar su inscripción.
-              </CardDescription>
+              <CardDescription>Crea un código único para que las personas puedan completar su inscripción después de realizar el pago.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Form {...generateForm}>
+                <form onSubmit={generateForm.handleSubmit(generateAccessCode)} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
-                      control={form.control}
+                      control={generateForm.control}
                       name="document_id"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Número de documento</FormLabel>
+                          <FormLabel>Número de Documento</FormLabel>
                           <FormControl>
-                            <Input placeholder="Ej. 1234567890" {...field} />
+                            <Input placeholder="Ej. 1234567890" {...field} disabled={submitting} />
                           </FormControl>
                           <FormDescription>Documento de la persona responsable del pago</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-
                     <FormField
-                      control={form.control}
+                      control={generateForm.control}
                       name="people_count"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Número de personas</FormLabel>
+                          <FormLabel>Número de Personas</FormLabel>
                           <FormControl>
-                            <Input
-                              type="number"
-                              min="1"
-                              max="20"
-                              {...field}
-                              // Asegúrate de que el valor sea un número cuando se actualiza
-                              onChange={(e) => field.onChange(Number(e.target.value))}
-                            />
+                            <Input type="number" min="1" max="20" {...field} disabled={submitting} />
                           </FormControl>
-                          <FormDescription>1 = Individual, 2+ = Grupo (máximo 20 personas)</FormDescription>
+                          <FormDescription>1 = Individual, 2+ = Grupo (máximo 20)</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
-
-                  <FormField
-                    control={form.control}
-                    name="payment_image"
-                    render={({ field: { value, onChange, ...field } }) => (
-                      <FormItem>
-                        <FormLabel>Imagen del comprobante (opcional)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              const files = e.target.files;
-                              onChange(files instanceof FileList ? files : null);
-                            }}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Puedes agregar la imagen ahora o posteriormente desde la gestión de códigos
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
                   <Button type="submit" disabled={submitting} className="w-full">
                     {submitting ? (
                       <>
@@ -368,7 +426,7 @@ export default function PaymentControl() {
                     ) : (
                       <>
                         <CheckCircle className="mr-2 h-4 w-4" />
-                        Generar código de acceso
+                        Generar Código de Acceso
                       </>
                     )}
                   </Button>
@@ -376,27 +434,14 @@ export default function PaymentControl() {
               </Form>
             </CardContent>
           </Card>
-
-          {generatedCode && (
-            <Alert>
-              <CheckCircle className="h-4 w-4" />
-              <AlertTitle>¡Código generado exitosamente!</AlertTitle>
-              <AlertDescription>
-                Se ha generado el código de acceso: <strong>{generatedCode}</strong>
-                <br />
-                Envía este código a la persona por WhatsApp para que pueda completar su inscripción.
-              </AlertDescription>
-            </Alert>
-          )}
         </TabsContent>
 
+        {/* Tab: Gestionar Códigos */}
         <TabsContent value="manage" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Códigos de Acceso Generados</CardTitle>
-              <CardDescription>
-                Gestiona los códigos existentes, agrega imágenes de pago y actualiza información.
-              </CardDescription>
+              <CardDescription>Gestiona los códigos existentes, agrega comprobantes de pago y actualiza información.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="rounded-md border">
@@ -406,9 +451,9 @@ export default function PaymentControl() {
                       <TableHead>Documento</TableHead>
                       <TableHead>Código</TableHead>
                       <TableHead>Tipo</TableHead>
-                      <TableHead>Personas</TableHead>
                       <TableHead>Estado</TableHead>
-                      <TableHead>Imágenes</TableHead>
+                      <TableHead>Comprobantes</TableHead>
+                      <TableHead>Fecha</TableHead>
                       <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -416,13 +461,20 @@ export default function PaymentControl() {
                     {loading ? (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center py-8">
-                          Cargando códigos...
+                          <div className="flex items-center justify-center">
+                            <Upload className="mr-2 h-4 w-4 animate-spin" />
+                            Cargando códigos...
+                          </div>
                         </TableCell>
                       </TableRow>
-                    ) : accessCodes.length === 0 ? (
+                    ) : accessCodes && accessCodes.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center py-8">
-                          No hay códigos de acceso generados.
+                          <div className="text-gray-500">
+                            <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                            <p>No hay códigos generados aún</p>
+                            <p className="text-sm">Usa la pestaña &quot;Generar Código&quot; para crear uno</p>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -430,51 +482,54 @@ export default function PaymentControl() {
                         <TableRow key={accessCode.id}>
                           <TableCell className="font-medium">{accessCode.document_id}</TableCell>
                           <TableCell>
-                            <code className="bg-gray-100 px-2 py-1 rounded text-sm">{accessCode.access_code}</code>
+                            <div className="flex items-center gap-2">
+                              <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono">
+                                {accessCode.access_code}
+                              </code>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => copyToClipboard(accessCode.access_code)}
+                              >
+                                <Copy className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </TableCell>
-                          <TableCell>
-                            {accessCode.is_group ? (
-                              <Badge variant="outline" className="border-blue-500 text-blue-500">
-                                <Users className="h-3 w-3 mr-1" />
-                                Grupo
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline">
-                                <User className="h-3 w-3 mr-1" />
-                                Individual
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>{accessCode.people_count}</TableCell>
+                          <TableCell>{getTypeBadge(accessCode.is_group, accessCode.people_count)}</TableCell>
                           <TableCell>{getStatusBadge(accessCode.status)}</TableCell>
                           <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedAccessCode(accessCode)
-                                setIsImageDialogOpen(true)
-                              }}
-                            >
+                            <Button variant="ghost" size="sm" onClick={() => openImageDialog(accessCode)}>
                               <ImageIcon className="h-4 w-4 mr-1" />
-                              {accessCode.payment_images.length} imagen
-                              {accessCode.payment_images.length !== 1 ? "es" : ""}
+                              {(accessCode.payment_images || []).length}
                             </Button>
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-500">
+                            {new Date(accessCode.created_at).toLocaleDateString()}
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex gap-1 justify-end">
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => {
-                                  setSelectedAccessCode(accessCode)
-                                  setEditingPeopleCount(accessCode.people_count)
-                                  setIsEditDialogOpen(true)
-                                }}
+                                onClick={() => openImageDialog(accessCode)}
+                                title="Ver comprobantes"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openEditDialog(accessCode)}
+                                title="Editar número de personas"
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleDeleteAccessCode(accessCode)}>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openDeleteDialog(accessCode)}
+                                title="Eliminar código"
+                              >
                                 <Trash2 className="h-4 w-4 text-red-500" />
                               </Button>
                             </div>
@@ -487,78 +542,151 @@ export default function PaymentControl() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Estadísticas */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-blue-600">{(accessCodes || []).length}</p>
+                  <p className="text-sm text-gray-600">Total códigos</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-yellow-600">
+                    {(accessCodes?.filter((code) => code.status === "pending").length || 0)}
+                  </p>
+                  <p className="text-sm text-gray-600">Pendientes</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-green-600">
+                    {(accessCodes?.filter((code) => code.status === "paid").length || 0)}
+                  </p>
+                  <p className="text-sm text-gray-600">Pagados</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-blue-600">
+                    {(accessCodes?.filter((code) => code.status === "used").length || 0)}
+                  </p>
+                  <p className="text-sm text-gray-600">Usados</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 
-      {/* Dialog para gestionar imágenes de pago */}
+      {/* Diálogo: Imágenes de Pago */}
       <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Gestionar Imágenes de Pago - {selectedAccessCode?.access_code}</DialogTitle>
+            <DialogTitle>Gestionar Comprobantes - {selectedAccessCode?.access_code}</DialogTitle>
             <DialogDescription>
               {selectedAccessCode?.is_group
-                ? "Agrega múltiples imágenes de pago para el grupo"
-                : "Agrega la imagen del comprobante de pago"}
+                ? `Grupo de ${selectedAccessCode.people_count} personas`
+                : "Inscripción individual"}
             </DialogDescription>
           </DialogHeader>
-
           <div className="space-y-6">
-            {/* Agregar nueva imagen */}
+            {/* Formulario para seleccionar imagen local */}
             <div className="border rounded-lg p-4">
-              <h4 className="font-medium mb-3">Agregar Nueva Imagen</h4>
-              <div className="flex gap-3">
-                <Input
-                  placeholder="URL de la imagen del comprobante"
-                  value={newImageUrl}
-                  onChange={(e) => setNewImageUrl(e.target.value)}
-                  className="flex-1"
-                />
-                <Button onClick={handleAddPaymentImage} disabled={uploadingImage || !newImageUrl}>
-                  {uploadingImage ? (
-                    <>
-                      <Upload className="mr-2 h-4 w-4 animate-spin" />
-                      Agregando...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Agregar
-                    </>
-                  )}
-                </Button>
-              </div>
+              <h4 className="font-medium mb-3">Agregar Comprobante de Pago</h4>
+              <Form {...imageForm}>
+                <form onSubmit={imageForm.handleSubmit(addPaymentImage)} className="space-y-4">
+                  <FormField
+                    control={imageForm.control}
+                    name="image_file"
+                    render={({ field: { value, onChange, ...fieldProps } }) => (
+                      <FormItem>
+                        <FormLabel>Seleccionar imagen</FormLabel>
+                        <FormControl>
+                          {/* ✅ CORRECCIÓN para FileList is not defined:
+                              Renderizar el input de tipo 'file' solo en el cliente */}
+                          {typeof window !== 'undefined' ? (
+                            <Input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files.length > 0) {
+                                  onChange(e.target.files[0]) // Pasa el objeto File
+                                } else {
+                                  onChange(undefined) // Si no se selecciona nada, pasa undefined
+                                }
+                              }}
+                              {...fieldProps}
+                            />
+                          ) : (
+                            // ✅ Renderizar un placeholder o un input deshabilitado en el servidor
+                            <Input type="file" disabled placeholder="Cargando..." />
+                          )}
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" disabled={uploadingImage} className="w-full">
+                    {uploadingImage ? (
+                      <>
+                        <Upload className="mr-2 h-4 w-4 animate-spin" />
+                        Agregando...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Agregar Comprobante
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </Form>
             </div>
 
-            {/* Imágenes actuales */}
+            {/* Lista de imágenes actuales */}
             <div>
-              <h4 className="font-medium mb-3">Imágenes de Pago ({selectedAccessCode?.payment_images.length || 0})</h4>
-              {selectedAccessCode?.payment_images && selectedAccessCode.payment_images.length > 0 ? (
+              <h4 className="font-medium mb-3">
+                Comprobantes Actuales ({selectedAccessCode?.payment_images?.length || 0})
+              </h4>
+              {selectedAccessCode?.payment_images &&
+              selectedAccessCode.payment_images.length > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {selectedAccessCode.payment_images.map((image) => (
                     <div key={image.id} className="relative group">
-                      <div className="aspect-square relative rounded overflow-hidden border">
-                        <img
-                          src={image.url || "/placeholder.svg"}
-                          alt="Comprobante de pago"
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.src = "/placeholder.svg?height=200&width=200"
-                          }}
-                        />
-                      </div>
+                      <img
+                        src={image.url || "/placeholder.svg?height=200&width=200"}
+                        alt="Comprobante de pago"
+                        className="w-full h-32 object-cover rounded border"
+                      />
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center">
-                        <Button variant="destructive" size="sm" onClick={() => handleRemovePaymentImage(image.id)}>
-                          <X className="h-4 w-4" />
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => removePaymentImage(image.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                      <p className="text-xs text-gray-600 mt-1">{new Date(image.uploaded_at).toLocaleDateString()}</p>
+                      <p className="text-xs text-gray-600 mt-1 text-center">
+                        {new Date(image.uploaded_at).toLocaleDateString()}
+                      </p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500 border-2 border-dashed rounded-lg">
-                  <ImageIcon className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p>No hay imágenes de pago</p>
+                <div className="text-center py-8 text-gray-500 border-dashed border-2 rounded-lg">
+                  <ImageIcon className="h-12 w-12 mx-auto mb-2" />
+                  <p>No hay comprobantes aún</p>
+                  <p className="text-sm">Usa el formulario superior para agregar uno</p>
                 </div>
               )}
             </div>
@@ -566,7 +694,7 @@ export default function PaymentControl() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog para editar número de personas */}
+      {/* Diálogo: Editar Número de Personas */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -575,28 +703,54 @@ export default function PaymentControl() {
               Modifica el número de personas para el código {selectedAccessCode?.access_code}
             </DialogDescription>
           </DialogHeader>
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Número de personas</label>
-              <Input
-                type="number"
-                min="1"
-                max="20"
-                value={editingPeopleCount}
-                onChange={(e) => setEditingPeopleCount(Number.parseInt(e.target.value) || 1)}
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(updatePeopleCount)} className="space-y-4">
+              <FormField
+                control={editForm.control}
+                name="people_count"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Número de personas</FormLabel>
+                    <FormControl>
+                      <Input type="number" min="1" max="20" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      {editForm.watch("people_count") === 1
+                        ? "Individual"
+                        : `Grupo de ${editForm.watch("people_count")} personas`}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              <p className="text-sm text-gray-500 mt-1">
-                {editingPeopleCount === 1 ? "Individual" : `Grupo de ${editingPeopleCount} personas`}
-              </p>
-            </div>
-          </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit">Actualizar</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
+      {/* Diálogo: Confirmar Eliminación */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar Eliminación</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas eliminar el código "{selectedAccessCode?.access_code}"?
+            </DialogDescription>
+          </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleUpdatePeopleCount}>Actualizar</Button>
+            <Button variant="destructive" onClick={deleteAccessCode}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Eliminar Código
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
