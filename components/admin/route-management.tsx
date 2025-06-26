@@ -29,29 +29,32 @@ type DaySpots = {
   spots: number
 }
 
-type Route = {
-  id: string
-  name: string
-  description: string
-  difficulty: "Fácil" | "Moderada" | "Difícil"
-  image_url: string
-  available_spots_by_day: DaySpots[]
-  duration: string
-  distance: string
-  elevation: string
-  meeting_point: string
-  gallery?: Array<{
-    id: string
-    url: string
-    alt: string
-    uploaded_at: string
-  }>
+interface Route {
+  id: string; // Asumiendo que el ID de Firebase es string
+  name: string;
+  elevation: string;
+  description: string;
+  available_spots_by_day: { day: number; spots: number; }[];
+  duration: string;
+  difficulty: "Fácil" | "Moderada" | "Difícil"; // Correcto aquí
+  image_url: string;
+  distance: string;
+  meeting_point: string;
+  // ... otras propiedades que tu ruta pueda tener (ej. created_at, updated_at, gallery)
 }
+
 
 const routeFormSchema = z.object({
   name: z.string().min(3, "El nombre debe tener al menos 3 caracteres"),
   description: z.string().min(10, "La descripción debe tener al menos 10 caracteres"),
-  difficulty: z.string().min(1, "Selecciona una dificultad"),
+  difficulty: z.enum(["Fácil", "Moderada", "Difícil"], { // Cambiado de z.string()
+    errorMap: (issue, ctx) => {
+      if (issue.code === z.ZodIssueCode.invalid_enum_value) {
+        return { message: "La dificultad debe ser 'Fácil', 'Moderada' o 'Difícil'" };
+      }
+      return { message: ctx.defaultError };
+    },
+  }),
   image_url: z.string().url("Debe ser una URL válida").or(z.string().length(0)),
   available_spots_by_day: z
     .array(
@@ -75,18 +78,14 @@ export default function RouteManagement() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [currentRoute, setCurrentRoute] = useState<Route | null>(null)
 
-  const [isGalleryDialogOpen, setIsGalleryDialogOpen] = useState(false)
-  const [galleryRoute, setGalleryRoute] = useState<Route | null>(null)
-  const [newImageUrl, setNewImageUrl] = useState("")
-  const [newImageAlt, setNewImageAlt] = useState("")
-  const [uploadingImage, setUploadingImage] = useState(false)
+  
 
   const form = useForm<z.infer<typeof routeFormSchema>>({
     resolver: zodResolver(routeFormSchema),
     defaultValues: {
       name: "",
       description: "",
-      difficulty: "",
+      difficulty: "Fácil",
       image_url: "",
       available_spots_by_day: [
         { day: 1, spots: 0 },
@@ -135,54 +134,7 @@ export default function RouteManagement() {
     } catch (error) {
       console.error("Error fetching routes:", error)
       // Fallback data for preview
-      setRoutes([
-        {
-          id: "1",
-          name: "Sendero del Bosque",
-          description: "Un recorrido tranquilo a través de un hermoso bosque con vistas panorámicas.",
-          difficulty: "Fácil",
-          image_url: "/placeholder.svg?height=300&width=500",
-          available_spots_by_day: [
-            { day: 1, spots: 25 },
-            { day: 2, spots: 20 },
-          ],
-          duration: "3 horas",
-          distance: "5 km",
-          elevation: "150 m",
-          meeting_point: "Parque Central, entrada principal",
-        },
-        {
-          id: "2",
-          name: "Cascada Escondida",
-          description: "Ruta que te lleva a una impresionante cascada oculta entre montañas.",
-          difficulty: "Moderada",
-          image_url: "/placeholder.svg?height=300&width=500",
-          available_spots_by_day: [
-            { day: 1, spots: 15 },
-            { day: 2, spots: 12 },
-            { day: 3, spots: 10 },
-          ],
-          duration: "4 horas",
-          distance: "7 km",
-          elevation: "300 m",
-          meeting_point: "Estación de guardabosques",
-        },
-        {
-          id: "3",
-          name: "Cumbre del Águila",
-          description: "Ascenso desafiante con vistas espectaculares desde la cima.",
-          difficulty: "Difícil",
-          image_url: "/placeholder.svg?height=300&width=500",
-          available_spots_by_day: [
-            { day: 1, spots: 10 },
-            { day: 2, spots: 8 },
-          ],
-          duration: "6 horas",
-          distance: "10 km",
-          elevation: "800 m",
-          meeting_point: "Centro de visitantes",
-        },
-      ])
+      
     } finally {
       setLoading(false)
     }
@@ -191,7 +143,7 @@ export default function RouteManagement() {
   const onSubmit = async (data: z.infer<typeof routeFormSchema>) => {
     try {
       if (isEditDialogOpen && currentRoute) {
-        const updatedRoute = await firebaseClient.updateRoute(currentRoute.id, data)
+        await firebaseClient.updateRoute(currentRoute.id, data)
         setRoutes(routes.map((route) => (route.id === currentRoute.id ? { ...route, ...data } : route)))
 
         toast.success("Ruta actualizada", {
@@ -209,7 +161,7 @@ export default function RouteManagement() {
       form.reset({
         name: "",
         description: "",
-        difficulty: "",
+        difficulty: "Fácil",
         image_url: "",
         available_spots_by_day: [
           { day: 1, spots: 0 },
@@ -250,60 +202,7 @@ export default function RouteManagement() {
     }
   }
 
-  const handleAddImageToRoute = async () => {
-    if (!galleryRoute || !newImageUrl || !newImageAlt) {
-      toast.error("Por favor completa todos los campos")
-      return
-    }
-
-    setUploadingImage(true)
-    try {
-      const newImage = await firebaseClient.addImageToRoute(galleryRoute.id, {
-        url: newImageUrl,
-        alt: newImageAlt,
-      })
-
-      // Actualizar la ruta local
-      const updatedRoute = {
-        ...galleryRoute,
-        gallery: [...(galleryRoute.gallery || []), newImage],
-      }
-      setGalleryRoute(updatedRoute)
-      setRoutes(routes.map((route) => (route.id === galleryRoute.id ? updatedRoute : route)))
-
-      setNewImageUrl("")
-      setNewImageAlt("")
-
-      toast.success("Imagen agregada exitosamente")
-    } catch (error) {
-      console.error("Error adding image:", error)
-      toast.error("Error al agregar la imagen")
-    } finally {
-      setUploadingImage(false)
-    }
-  }
-
-  const handleRemoveImageFromRoute = async (imageId: string) => {
-    if (!galleryRoute) return
-
-    try {
-      await firebaseClient.removeImageFromRoute(galleryRoute.id, imageId)
-
-      // Actualizar la ruta local
-      const updatedRoute = {
-        ...galleryRoute,
-        gallery: galleryRoute.gallery?.filter((img) => img.id !== imageId) || [],
-      }
-      setGalleryRoute(updatedRoute)
-      setRoutes(routes.map((route) => (route.id === galleryRoute.id ? updatedRoute : route)))
-
-      toast.success("Imagen eliminada exitosamente")
-    } catch (error) {
-      console.error("Error removing image:", error)
-      toast.error("Error al eliminar la imagen")
-    }
-  }
-
+  
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case "Fácil":
@@ -345,7 +244,7 @@ export default function RouteManagement() {
             form.reset({
               name: "",
               description: "",
-              difficulty: "",
+              difficulty: "Fácil",
               image_url: "",
               available_spots_by_day: [
                 { day: 1, spots: 0 },
@@ -374,9 +273,8 @@ export default function RouteManagement() {
                   {Array.from({ length: maxDays }, (_, i) => (
                     <TableHead key={i + 1}>Cupos Día {i + 1}</TableHead>
                   ))}
-                  <TableHead className="min-w-[200px]">Punto de encuentro</TableHead>
-                  <TableHead>Galería</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead className="min-w-[150px]">Punto de encuentro</TableHead>
+                  <TableHead className="text-left">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -410,20 +308,8 @@ export default function RouteManagement() {
                         <MapPin className="h-4 w-4 mr-1 text-gray-500 flex-shrink-0" />
                         <span className="truncate">{route.meeting_point}</span>
                       </TableCell>
+                      
                       <TableCell className="text-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setGalleryRoute(route)
-                            setIsGalleryDialogOpen(true)
-                          }}
-                        >
-                          <ImageIcon className="h-4 w-4 mr-1" />
-                          {route.gallery?.length || 0} fotos
-                        </Button>
-                      </TableCell>
-                      <TableCell className="text-right">
                         <div className="flex gap-1">
                           <Button
                             variant="ghost"
@@ -684,96 +570,7 @@ export default function RouteManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Gallery Management Dialog */}
-      <Dialog open={isGalleryDialogOpen} onOpenChange={setIsGalleryDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Gestionar Galería - {galleryRoute?.name}</DialogTitle>
-            <DialogDescription>Agrega o elimina fotos específicas para esta ruta (máximo 10 fotos).</DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6">
-            {/* Agregar nueva imagen */}
-            <div className="border rounded-lg p-4">
-              <h4 className="font-medium mb-3">Agregar Nueva Imagen</h4>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium mb-1">URL de la imagen</label>
-                  <Input
-                    placeholder="https://ejemplo.com/imagen.jpg"
-                    value={newImageUrl}
-                    onChange={(e) => setNewImageUrl(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Descripción</label>
-                  <Input
-                    placeholder="Descripción de la imagen"
-                    value={newImageAlt}
-                    onChange={(e) => setNewImageAlt(e.target.value)}
-                  />
-                </div>
-                <Button
-                  onClick={handleAddImageToRoute}
-                  disabled={
-                    uploadingImage || !newImageUrl || !newImageAlt || (galleryRoute?.gallery?.length || 0) >= 10
-                  }
-                  className="w-full"
-                >
-                  {uploadingImage ? (
-                    <>
-                      <Upload className="mr-2 h-4 w-4 animate-spin" />
-                      Agregando...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Agregar Imagen
-                    </>
-                  )}
-                </Button>
-                {(galleryRoute?.gallery?.length || 0) >= 10 && (
-                  <p className="text-sm text-red-600">Máximo 10 imágenes por ruta</p>
-                )}
-              </div>
-            </div>
-
-            {/* Galería actual */}
-            <div>
-              <h4 className="font-medium mb-3">Galería Actual ({galleryRoute?.gallery?.length || 0}/10)</h4>
-              {galleryRoute?.gallery && galleryRoute.gallery.length > 0 ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {galleryRoute.gallery.map((image) => (
-                    <div key={image.id} className="relative group">
-                      <div className="aspect-square relative rounded overflow-hidden">
-                        <img
-                          src={image.url || "/placeholder.svg"}
-                          alt={image.alt}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.src = "/placeholder.svg?height=200&width=200"
-                          }}
-                        />
-                      </div>
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center">
-                        <Button variant="destructive" size="sm" onClick={() => handleRemoveImageFromRoute(image.id)}>
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <p className="text-xs text-gray-600 mt-1 truncate">{image.alt}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <ImageIcon className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p>No hay imágenes en la galería de esta ruta</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      
     </div>
   )
 }

@@ -9,20 +9,31 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Search, Filter, Eye, Download } from "lucide-react"
-// Cambia la importación
 import { firebaseClient } from "@/lib/firebase/client"
 
+// 1. Define una interfaz común para las rutas
+interface Route {
+  id: string; // ✅ ID debe ser string
+  name: string;
+  // Aquí puedes añadir otras propiedades de Route si las tienes
+}
+
+// 2. Modifica el tipo 'Person'
 type Person = {
-  id: number
-  full_name: string
-  document_id: string
-  email: string
-  phone: string
-  route_name: string
-  registration_type: "individual" | "group_leader" | "group_member" | "staff"
-  payment_status: "pending" | "paid"
-  souvenir_status: "pending" | "delivered"
-  registration_code?: string
+  id: string; // ✅ ID debe ser string
+  full_name: string;
+  document_id: string;
+  email: string;
+  phone: string;
+  rh?: string | null; // ✅ Añadido, ya que se usa en el diálogo
+  route_name: string; // Nombre de la ruta, no el ID
+  route_id_day1?: string | null; // ✅ Añadido, ya que se usa con getRouteName
+  route_id_day2?: string | null; // ✅ Añadido, ya que se usa con getRouteName
+  registration_type: "individual" | "group_leader" | "group_member" | "staff";
+  payment_status: "pending" | "paid";
+  souvenir_status: "pending" | "delivered";
+  registration_code?: string;
+  // Si en el diálogo se usan 'leader_full_name' o 'group_name', añádelos aquí también.
 }
 
 export default function PersonManagement() {
@@ -32,7 +43,8 @@ export default function PersonManagement() {
   const [searchTerm, setSearchTerm] = useState("")
   const [routeFilter, setRouteFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [routes, setRoutes] = useState<{ id: number; name: string }[]>([])
+  // 3. Usa la interfaz Route definida para el estado 'routes'
+  const [routes, setRoutes] = useState<Route[]>([])
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
 
@@ -45,13 +57,26 @@ export default function PersonManagement() {
     applyFilters()
   }, [searchTerm, routeFilter, statusFilter, people])
 
-  // En fetchPeople:
   const fetchPeople = async () => {
     setLoading(true)
     try {
       const data = await firebaseClient.getRegistrations()
-      setPeople(data)
-      setFilteredPeople(data)
+      // ✅ Asegúrate de que los datos de Firebase se mapeen correctamente a Person.
+      // Si firebaseClient.getRegistrations no devuelve 'id' como string, o incluye
+      // 'route_id_day1', 'route_id_day2', 'rh' como 'any' o 'undefined',
+      // deberías mapearlos aquí o tipar mejor 'getRegistrations' en firebaseClient.ts.
+      // Ejemplo si necesitas mapear:
+      // const mappedData: Person[] = data.map(doc => ({
+      //   id: doc.id, // Suponiendo que doc.id es string
+      //   ...doc.data() as Omit<Person, 'id'>, // Omit 'id' ya que lo añades manualmente
+      //   route_id_day1: doc.data().route_id_day1 || null, // Manejar posibles undefined/null
+      //   route_id_day2: doc.data().route_id_day2 || null,
+      //   rh: doc.data().rh || null,
+      // }));
+      // setPeople(mappedData);
+      // setFilteredPeople(mappedData);
+      setPeople(data); // Si firebaseClient.getRegistrations ya devuelve Person[]
+      setFilteredPeople(data);
     } catch (error) {
       console.error("Error fetching people:", error)
     } finally {
@@ -63,7 +88,8 @@ export default function PersonManagement() {
   const fetchRoutes = async () => {
     try {
       const data = await firebaseClient.getRoutes()
-      setRoutes(data.map((route) => ({ id: route.id, name: route.name })))
+      // ✅ Asegúrate de que los IDs de las rutas sean strings al mapear
+      setRoutes(data.map((route) => ({ id: String(route.id), name: route.name })))
     } catch (error) {
       console.error("Error fetching routes:", error)
     }
@@ -78,14 +104,15 @@ export default function PersonManagement() {
       result = result.filter(
         (person) =>
           person.full_name.toLowerCase().includes(term) ||
-          person.document_id.includes(term) ||
-          person.email.toLowerCase().includes(term) ||
-          (person.registration_code && person.registration_code.toLowerCase().includes(term)),
+          person.document_id.includes(term),
       )
     }
 
     // Apply route filter
     if (routeFilter !== "all") {
+      // ✅ Aquí puedes usar route_id_day1 o route_id_day2, o una lógica más compleja
+      // Depende de cómo quieras filtrar por ruta. Si 'route_name' en Person es el nombre
+      // de la ruta principal, entonces la comparación es directa.
       result = result.filter((person) => person.route_name === routeFilter)
     }
 
@@ -162,9 +189,31 @@ export default function PersonManagement() {
   }
 
   const exportToExcel = () => {
-    // In a real implementation, you would generate an Excel file
-    alert("Esta función generaría un archivo Excel con los datos filtrados.")
+    alert("Esta función aún no está implementada. Pronto estará disponible.")
   }
+
+  // ✅ Este useEffect está duplicado y debería ser eliminado o fusionado con el primero.
+  // La llamada a 'fetchRoutes' ya se hace en el primer useEffect.
+  /*
+  useEffect(() => {
+      const loadRoutes = async () => {
+        try {
+          const routesList = await firebaseClient.getRoutes()
+          setRoutes(routesList)
+        } catch (error) {
+          console.error("Error loading routes:", error)
+        }
+      }
+      loadRoutes()
+    }, [])
+  */
+
+    // La función getRouteName está bien ahora que los tipos coinciden
+    const getRouteName = (routeId: string | undefined | null): string => { // Añadido null al tipo de routeId por si viene de Firebase
+      if (!routeId) return "-"
+      const route = routes.find((r) => r.id === routeId) // ✅ r.id (string) === routeId (string)
+      return route?.name || "Ruta desconocida"
+    }
 
   return (
     <div className="space-y-6">
@@ -230,9 +279,9 @@ export default function PersonManagement() {
                 <TableRow>
                   <TableHead>Nombre</TableHead>
                   <TableHead>Cédula</TableHead>
-                  <TableHead>Ruta</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Estado</TableHead>
+                  <TableHead>Teléfono</TableHead>
+                  <TableHead>Ruta Día 1</TableHead>
+                  <TableHead>Ruta Día 2</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -254,9 +303,9 @@ export default function PersonManagement() {
                     <TableRow key={person.id}>
                       <TableCell className="font-medium">{person.full_name}</TableCell>
                       <TableCell>{person.document_id}</TableCell>
-                      <TableCell>{person.route_name}</TableCell>
-                      <TableCell>{getRegistrationTypeBadge(person.registration_type)}</TableCell>
-                      <TableCell>{getStatusBadge(person)}</TableCell>
+                      <TableCell>{person.phone}</TableCell>
+                      <TableCell>{getRouteName(person.route_id_day1)}</TableCell>
+                      <TableCell>{getRouteName(person.route_id_day2)}</TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="ghost"
@@ -301,8 +350,8 @@ export default function PersonManagement() {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <p className="text-sm text-gray-500">Email</p>
-                  <p className="font-medium">{selectedPerson.email}</p>
+                  <p className="text-sm text-gray-500">RH</p>
+                  <p className="font-medium">{selectedPerson.rh || "-"}</p> {/* Manejo de null/undefined */}
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Teléfono</p>
@@ -312,10 +361,18 @@ export default function PersonManagement() {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <p className="text-sm text-gray-500">Ruta</p>
-                  <p className="font-medium">{selectedPerson.route_name}</p>
+                  <p className="text-sm text-gray-500">Ruta Día 1</p>
+                  <p className="font-medium">{getRouteName(selectedPerson.route_id_day1)}</p>
                 </div>
                 <div>
+                  <p className="text-sm text-gray-500">Ruta Día 2</p>
+                  <p className="font-medium">{getRouteName(selectedPerson.route_id_day2)}</p>
+                </div>
+                
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+              <div>
                   <p className="text-sm text-gray-500">Tipo de registro</p>
                   <p className="font-medium">
                     {selectedPerson.registration_type === "individual" && "Individual"}
@@ -324,17 +381,10 @@ export default function PersonManagement() {
                     {selectedPerson.registration_type === "staff" && "Staff"}
                   </p>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <p className="text-sm text-gray-500">Estado de pago</p>
-                  <p className="font-medium">{selectedPerson.payment_status === "pending" ? "Pendiente" : "Pagado"}</p>
-                </div>
                 <div>
                   <p className="text-sm text-gray-500">Estado de souvenir</p>
                   <p className="font-medium">
-                    {selectedPerson.souvenir_status === "pending" ? "Pendiente" : "Entregado"}
+                    {selectedPerson.souvenir_status === "delivered" ? "Entregado" : "Pendiente"} {/* Asegura que el chequeo sea 'delivered' */}
                   </p>
                 </div>
               </div>
@@ -344,6 +394,13 @@ export default function PersonManagement() {
                   <p className="text-sm text-gray-500">Código de registro</p>
                   <p className="font-medium">{selectedPerson.registration_code}</p>
                 </div>
+              )}
+              {/* ✅ 'email' en Person, pero no se muestra en el diálogo. Puedes añadirlo si es necesario. */}
+              {selectedPerson.email && (
+                 <div>
+                    <p className="text-sm text-gray-500">Email</p>
+                    <p className="font-medium">{selectedPerson.email}</p>
+                 </div>
               )}
             </div>
           )}

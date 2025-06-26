@@ -63,15 +63,8 @@ type AccessCode = {
   people_count: number
   access_code: string
   is_group: boolean
-  payment_images: Array<{
-    id: string
-    url: string
-    uploaded_at: string
-    storagePath?: string
-  }>
-  status: "pending" | "paid" | "used"
-  route_id?: string
-  day?: number
+  
+  status:  "paid" | "used"
   created_at: string
   updated_at: string
 }
@@ -141,116 +134,49 @@ export default function PaymentControl() {
 
   // Generar nuevo código
   const generateAccessCode = async (data: z.infer<typeof generateCodeSchema>) => {
-    setSubmitting(true)
+    setSubmitting(true);
     try {
-      const existingCode = await firebaseClient.getAccessCodeByDocument(data.document_id)
+      const existingCode = await firebaseClient.getAccessCodeByDocument(data.document_id);
       if (existingCode) {
-        toast.error("Ya existe un código de acceso para este número de documento")
-        return
+        toast.error("Ya existe un código de acceso para este número de documento");
+        return;
       }
-
-      const newAccessCode = await firebaseClient.createAccessCode({
+  
+      // Aquí llamamos a tu función firebaseClient.createAccessCode
+      // Asumimos que esta función devuelve un objeto con todas las propiedades de AccessCode
+      // (id, document_id, people_count, access_code, is_group, payment_images, status, created_at, updated_at).
+      // Si no es así, necesitarías modificar firebaseClient.createAccessCode para que las incluya.
+      const createdAccessCodeData = await firebaseClient.createAccessCode({
         document_id: data.document_id,
         people_count: data.people_count,
         payment_images: [],
-      })
-
-      setAccessCodes([newAccessCode, ...accessCodes])
-      setLastGeneratedCode(newAccessCode.access_code)
-      generateForm.reset()
-      toast.success(`Código generado exitosamente: ${newAccessCode.access_code}`)
+        // Si status, is_group, created_at, updated_at se deben pasar aquí, añádelos:
+        // status: "pending", // Asegúrate de que sea el literal, no una variable string
+        // is_group: data.people_count > 1, // Ejemplo de cómo determinarlo
+        // created_at: new Date().toISOString(),
+        // updated_at: new Date().toISOString(),
+      });
+  
+      // ✅ Usamos una aserción de tipo para decirle a TypeScript que estamos seguros
+      // de que 'createdAccessCodeData' es de tipo 'AccessCode'.
+      // Esto es un "parche" si firebaseClient.createAccessCode no está fuertemente tipado.
+      // La mejor solución es tipar correctamente la función en firebaseClient.ts.
+      const newAccessCode: AccessCode = createdAccessCodeData as AccessCode;
+  
+      // Asegúrate de usar la forma funcional de setAccessCodes si dependes del estado anterior
+      setAccessCodes((prevAccessCodes) => [newAccessCode, ...prevAccessCodes]);
+      setLastGeneratedCode(newAccessCode.access_code);
+      generateForm.reset();
+      toast.success(`Código generado exitosamente: ${newAccessCode.access_code}`);
     } catch (error) {
-      console.error("Error generating access code:", error)
-      toast.error("Error al generar el código de acceso")
+      console.error("Error generating access code:", error);
+      toast.error("Error al generar el código de acceso");
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
-  // ✅ ELIMINAR: Esta función `uploadImageToFirebase` ya no es necesaria aquí.
-  // La lógica de subida, incluyendo el saneamiento de la ruta, se ha movido
-  // y centralizado en `firebaseClient.ts`.
-  // const uploadImageToFirebase = async (file: File): Promise<string> => {
-  //   if (!selectedAccessCode) throw new Error("No hay código seleccionado")
-
-  //   const uniqueFileName = `${Date.now()}_${file.name}`
-  //   const storagePath = `payment_images/${selectedAccessCode.id}/${uniqueFileName}`
-  //   const imageStorageRef = storageRef(storage, storagePath)
-  //   const uploadTask = uploadBytesResumable(imageStorageRef, file)
-
-  //   // Esperar a que termine la carga
-  //   const snapshot = await new Promise<any>((resolve, reject) => {
-  //     uploadTask.on(
-  //       "state_changed",
-  //       undefined,
-  //       reject,
-  //       () => resolve(uploadTask.snapshot)
-  //     )
-  //   })
-
-  //   const downloadURL = await getDownloadURL(snapshot.ref)
-  //   return downloadURL
-  // }
-
-  // Agregar imagen de pago
-  const addPaymentImage = async (data: z.infer<typeof addImageSchema>) => {
-    if (!selectedAccessCode || !data.image_file) return
-    setUploadingImage(true)
-    try {
-      // ✅ CORRECCIÓN: Usar directamente la función de subida de firebaseClient
-      // que ya incluye el saneamiento de la ruta y maneja la subida completa.
-      const newImage = await firebaseClient.addPaymentImageToAccessCode(selectedAccessCode.id, data.image_file)
-
-      // El objeto 'newImage' ya contiene la URL y el storagePath guardados en RTDB
-      const updatedAccessCode = {
-        ...selectedAccessCode,
-        payment_images: [...(selectedAccessCode.payment_images || []), newImage],
-        status: "paid",
-      }
-
-      setSelectedAccessCode(updatedAccessCode)
-      setAccessCodes(
-        accessCodes.map((code) =>
-          code.id === selectedAccessCode.id ? updatedAccessCode : code
-        )
-      )
-
-      imageForm.reset()
-      toast.success("Imagen de pago agregada exitosamente")
-    } catch (error) {
-      console.error("Error adding payment image:", error)
-      toast.error("Error al agregar la imagen de pago")
-    } finally {
-      setUploadingImage(false)
-    }
-  }
-
-  // Eliminar imagen de pago
-  const removePaymentImage = async (imageId: string) => {
-    if (!selectedAccessCode) return
-    try {
-      await firebaseClient.removePaymentImageFromAccessCode(selectedAccessCode.id, imageId)
-
-      const updatedImages = selectedAccessCode.payment_images.filter((img) => img.id !== imageId)
-      const updatedAccessCode = {
-        ...selectedAccessCode,
-        payment_images: updatedImages,
-        status: updatedImages.length > 0 ? "paid" : "pending",
-      }
-
-      setSelectedAccessCode(updatedAccessCode)
-      setAccessCodes(
-        accessCodes.map((code) =>
-          code.id === selectedAccessCode.id ? updatedAccessCode : code
-        )
-      )
-
-      toast.success("Imagen eliminada exitosamente")
-    } catch (error) {
-      console.error("Error removing payment image:", error)
-      toast.error("Error al eliminar la imagen")
-    }
-  }
+ 
 
   // Actualizar número de personas
   const updatePeopleCount = async (data: z.infer<typeof editPeopleSchema>) => {
@@ -263,6 +189,13 @@ export default function PaymentControl() {
 
       await firebaseClient.updateAccessCode(selectedAccessCode.id, updatedData)
 
+      const group = await firebaseClient.getGroupByLeaderDocument(selectedAccessCode.document_id)
+
+      if (group) {
+        await firebaseClient.updateGroup(group.id, {
+          member_count: data.people_count,
+        })
+      }
       const updatedAccessCode = {
         ...selectedAccessCode,
         ...updatedData,
@@ -452,7 +385,6 @@ export default function PaymentControl() {
                       <TableHead>Código</TableHead>
                       <TableHead>Tipo</TableHead>
                       <TableHead>Estado</TableHead>
-                      <TableHead>Comprobantes</TableHead>
                       <TableHead>Fecha</TableHead>
                       <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
@@ -497,25 +429,13 @@ export default function PaymentControl() {
                           </TableCell>
                           <TableCell>{getTypeBadge(accessCode.is_group, accessCode.people_count)}</TableCell>
                           <TableCell>{getStatusBadge(accessCode.status)}</TableCell>
-                          <TableCell>
-                            <Button variant="ghost" size="sm" onClick={() => openImageDialog(accessCode)}>
-                              <ImageIcon className="h-4 w-4 mr-1" />
-                              {(accessCode.payment_images || []).length}
-                            </Button>
-                          </TableCell>
+                          
                           <TableCell className="text-sm text-gray-500">
                             {new Date(accessCode.created_at).toLocaleDateString()}
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex gap-1 justify-end">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => openImageDialog(accessCode)}
-                                title="Ver comprobantes"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
+                              
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -544,27 +464,18 @@ export default function PaymentControl() {
           </Card>
 
           {/* Estadísticas */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card>
-              <CardContent className="p-4">
+              <CardContent className="p-8">
                 <div className="text-center">
                   <p className="text-2xl font-bold text-blue-600">{(accessCodes || []).length}</p>
                   <p className="text-sm text-gray-600">Total códigos</p>
                 </div>
               </CardContent>
             </Card>
+            
             <Card>
-              <CardContent className="p-4">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-yellow-600">
-                    {(accessCodes?.filter((code) => code.status === "pending").length || 0)}
-                  </p>
-                  <p className="text-sm text-gray-600">Pendientes</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
+              <CardContent className="p-8">
                 <div className="text-center">
                   <p className="text-2xl font-bold text-green-600">
                     {(accessCodes?.filter((code) => code.status === "paid").length || 0)}
@@ -574,7 +485,7 @@ export default function PaymentControl() {
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="p-4">
+              <CardContent className="p-8">
                 <div className="text-center">
                   <p className="text-2xl font-bold text-blue-600">
                     {(accessCodes?.filter((code) => code.status === "used").length || 0)}
@@ -587,112 +498,6 @@ export default function PaymentControl() {
         </TabsContent>
       </Tabs>
 
-      {/* Diálogo: Imágenes de Pago */}
-      <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Gestionar Comprobantes - {selectedAccessCode?.access_code}</DialogTitle>
-            <DialogDescription>
-              {selectedAccessCode?.is_group
-                ? `Grupo de ${selectedAccessCode.people_count} personas`
-                : "Inscripción individual"}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-6">
-            {/* Formulario para seleccionar imagen local */}
-            <div className="border rounded-lg p-4">
-              <h4 className="font-medium mb-3">Agregar Comprobante de Pago</h4>
-              <Form {...imageForm}>
-                <form onSubmit={imageForm.handleSubmit(addPaymentImage)} className="space-y-4">
-                  <FormField
-                    control={imageForm.control}
-                    name="image_file"
-                    render={({ field: { value, onChange, ...fieldProps } }) => (
-                      <FormItem>
-                        <FormLabel>Seleccionar imagen</FormLabel>
-                        <FormControl>
-                          {/* ✅ CORRECCIÓN para FileList is not defined:
-                              Renderizar el input de tipo 'file' solo en el cliente */}
-                          {typeof window !== 'undefined' ? (
-                            <Input
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => {
-                                if (e.target.files && e.target.files.length > 0) {
-                                  onChange(e.target.files[0]) // Pasa el objeto File
-                                } else {
-                                  onChange(undefined) // Si no se selecciona nada, pasa undefined
-                                }
-                              }}
-                              {...fieldProps}
-                            />
-                          ) : (
-                            // ✅ Renderizar un placeholder o un input deshabilitado en el servidor
-                            <Input type="file" disabled placeholder="Cargando..." />
-                          )}
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" disabled={uploadingImage} className="w-full">
-                    {uploadingImage ? (
-                      <>
-                        <Upload className="mr-2 h-4 w-4 animate-spin" />
-                        Agregando...
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Agregar Comprobante
-                      </>
-                    )}
-                  </Button>
-                </form>
-              </Form>
-            </div>
-
-            {/* Lista de imágenes actuales */}
-            <div>
-              <h4 className="font-medium mb-3">
-                Comprobantes Actuales ({selectedAccessCode?.payment_images?.length || 0})
-              </h4>
-              {selectedAccessCode?.payment_images &&
-              selectedAccessCode.payment_images.length > 0 ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {selectedAccessCode.payment_images.map((image) => (
-                    <div key={image.id} className="relative group">
-                      <img
-                        src={image.url || "/placeholder.svg?height=200&width=200"}
-                        alt="Comprobante de pago"
-                        className="w-full h-32 object-cover rounded border"
-                      />
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center">
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => removePaymentImage(image.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <p className="text-xs text-gray-600 mt-1 text-center">
-                        {new Date(image.uploaded_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500 border-dashed border-2 rounded-lg">
-                  <ImageIcon className="h-12 w-12 mx-auto mb-2" />
-                  <p>No hay comprobantes aún</p>
-                  <p className="text-sm">Usa el formulario superior para agregar uno</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Diálogo: Editar Número de Personas */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

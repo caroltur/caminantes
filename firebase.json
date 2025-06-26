@@ -1,16 +1,19 @@
 {
   "hosting": {
-    "public": "public",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ]
+    "public": ".next/static", 
+    "rewrites": [
+      {
+        "source": "**",
+        "function": "ssr" 
+      }
+    ],
+    "frameworksBackend": {
+      "region": "us-central1" 
+    }
   },
-  "storage": {
-    "rules": "storage.rules"
-  },
-  "database": {
-    "rules": "database.rules.json"
+  "functions": {
+    "source": ".", 
+    "runtime": "nodejs20", 
+    "entryPoint": "ssr" 
   }
 }

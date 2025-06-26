@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Clock, MapPin, Mountain, Users, Search } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { firebaseClient } from "@/lib/firebase/client"
 
 type DaySpots = {
@@ -34,6 +35,7 @@ export default function RoutesPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [difficultyFilter, setDifficultyFilter] = useState("all")
+  const router = useRouter()
 
   useEffect(() => {
     fetchRoutes()
@@ -49,7 +51,6 @@ export default function RoutesPage() {
       setRoutes(data)
     } catch (error) {
       console.error("Error fetching routes:", error)
-      // Fallback data
       setRoutes([
         {
           id: "1",
@@ -123,13 +124,13 @@ export default function RoutesPage() {
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case "Fácil":
-        return "bg-green-500"
+        return "bg-green-500 text-white"
       case "Moderada":
-        return "bg-yellow-500"
+        return "bg-yellow-500 text-white"
       case "Difícil":
-        return "bg-red-500"
+        return "bg-red-500 text-white"
       default:
-        return "bg-gray-500"
+        return "bg-gray-500 text-white"
     }
   }
 
@@ -153,6 +154,17 @@ export default function RoutesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
+      {/* Botón fijo o destacado */}
+      <div className="container mx-auto px-4 mb-8">
+        <Button
+          onClick={() => router.push("/")}
+          variant="outline"
+          className="w-full md:w-auto border-2 border-green-600 text-green-600 hover:bg-green-50 shadow-md font-semibold"
+        >
+          ← Volver al Inicio
+        </Button>
+      </div>
+
       <div className="container mx-auto px-4">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Nuestras Rutas</h1>
@@ -162,8 +174,8 @@ export default function RoutesPage() {
         </div>
 
         {/* Filtros */}
-        <div className="mb-8 flex flex-col md:flex-row gap-4 max-w-2xl mx-auto">
-          <div className="relative flex-1">
+        <div className="mb-8 flex flex-col md:flex-row gap-4 max-w-2xl mx-auto justify-between items-center">
+          <div className="relative flex-1 w-full md:w-auto">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
               placeholder="Buscar rutas..."
@@ -204,7 +216,9 @@ export default function RoutesPage() {
                     }}
                   />
                   <div className="absolute top-4 left-4">
-                    <Badge className={`${getDifficultyColor(route.difficulty)} text-white`}>{route.difficulty}</Badge>
+                    <Badge className={`${getDifficultyColor(route.difficulty)}`}>
+                      {route.difficulty}
+                    </Badge>
                   </div>
                   <div className="absolute top-4 right-4">
                     <Badge variant="secondary" className="bg-white/90 text-gray-900">

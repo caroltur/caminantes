@@ -1,11 +1,18 @@
 "use client"
 
-
+import { useRouter } from "next/navigation"
+import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogFooter,} from "@/components/ui/dialog"
+import { z } from "zod"
+import { useForm } from "react-hook-form"
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Home, Route, Users, CreditCard, Settings } from "lucide-react"
+import { Home, Route, Users, CreditCard, Package, Download, Settings, ImageIcon } from "lucide-react"
 import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader } from "@/components/ui/table"
 import { toast } from "sonner"
@@ -14,28 +21,19 @@ import { firebaseClient } from "@/lib/firebase/client"
 import RouteManagement from "@/components/admin/route-management"
 import PersonManagement from "@/components/admin/person-management"
 import PaymentControl from "@/components/admin/payment-control"
-//import SouvenirControl from "@/components/admin/souvenir-control"
+import SouvenirControl from "@/components/admin/souvenir-control"
+import DataExport from "@/components/admin/data-export"
 import PriceSettings from "@/components/admin/price-settings"
 
-interface SpotByDay {
-  day: number
-  spots: number
-}
-
-interface RouteData {
-  id: string
-  name: string
-  available_spots_by_day: SpotByDay[]
-}
 
 
 export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("dashboard")
-  //const [accessCodes, setAccessCodes] = useState<any[]>([])
+  const [accessCodes, setAccessCodes] = useState<any[]>([])
   const [totalInscritos, setTotalInscritos] = useState(0)
   const [cuposTotales, setCuposTotales] = useState(0)
-  //const [souvenirsEntregados, setSouvenirsEntregados] = useState(0)
+  const [souvenirsEntregados, setSouvenirsEntregados] = useState(0)
   const [routesData, setRoutesData] = useState<{
     name: string
     day1Used: number
@@ -50,7 +48,7 @@ export default function AdminPage() {
         // 1. Obtener todas las inscripciones
         // Cargar códigos de acceso
         const codesList = await firebaseClient.getAccessCodes()
-        //setAccessCodes(codesList)
+        setAccessCodes(codesList)
 
         // Calcular cupos totales desde los códigos usados/pagados
         const totalSpotss = codesList          
@@ -65,7 +63,7 @@ export default function AdminPage() {
         setTotalInscritos(registrationsList.length)
 
         // Cargar rutas para mostrar gráfica
-        const routesList = await firebaseClient.getRoutes() as RouteData[]
+        const routesList = await firebaseClient.getRoutes()
 
         // Contar cuántas personas están inscritas por ruta y día
         const routesWithStats = routesList.map(route => {
@@ -76,8 +74,8 @@ export default function AdminPage() {
           const day2Used = registrationsList.filter(
             reg => reg.route_id_day2 === routeId
           ).length
-          const day1Total = route.available_spots_by_day.find((d: SpotByDay) => d.day === 1)?.spots || 0
-          const day2Total = route.available_spots_by_day.find((d: SpotByDay) => d.day === 2)?.spots || 0
+          const day1Total = route.available_spots_by_day.find(d => d.day === 1)?.spots || 0
+          const day2Total = route.available_spots_by_day.find(d => d.day === 2)?.spots || 0
 
           return {
             id: route.id,
@@ -103,7 +101,9 @@ export default function AdminPage() {
   }, [])
 
   // Calcular si hay cupos disponibles
-  
+  const getPercentage = (used: number, total: number) => {
+    return total > 0 ? Math.round((used / total) * 100) : 0
+  }
 
   if (loading) {
     return (
@@ -287,7 +287,7 @@ export default function AdminPage() {
                 <CardDescription>Artículos entregados a los participantes</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold">0</p>
+                <p className="text-3xl font-bold">{souvenirsEntregados}</p>
               </CardContent>
             </Card>
           </div>
@@ -304,18 +304,27 @@ export default function AdminPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Ruta</TableHead>
-                      <TableHead className="text-center">Día 1 <br/> Usados/Total</TableHead>
-                      <TableHead className="text-center">Día 2 <br/> Usados/Total</TableHead>
+                      <TableHead>Día 1 Usados / Total</TableHead>
+                      <TableHead>Día 2 Usados / Total</TableHead>
+                      <TableHead>Día 1 Disponibles</TableHead>
+                      <TableHead>Día 2 Disponibles</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {routesData.map((route, index) => {
+                      const available1 = Math.max(0, route.day1Total - route.day1Used)
+                      const available2 = Math.max(0, route.day2Total - route.day2Used)
+
+                      const percentage1 = getPercentage(route.day1Used, route.day1Total)
+                      const percentage2 = getPercentage(route.day2Used, route.day2Total)
 
                       return (
                         <TableRow key={index}>
                           <TableCell className="font-medium">{route.name}</TableCell>
-                          <TableCell className="text-center">{route.day1Used} / {route.day1Total}</TableCell>
-                          <TableCell className="text-center">{route.day2Used} / {route.day2Total}</TableCell>
+                          <TableCell>{route.day1Used} / {route.day1Total}</TableCell>
+                          <TableCell>{route.day2Used} / {route.day2Total}</TableCell>
+                          <TableCell className="text-green-600">{available1} disponibles</TableCell>
+                          <TableCell className="text-blue-600">{available2} disponibles</TableCell>
                         </TableRow>
                       )
                     })}
@@ -358,14 +367,41 @@ export default function AdminPage() {
           </div>
           </div>
           )}
+          {/* Lista de códigos de acceso */}
           
+          <Card>
+            <CardHeader>
+              <CardTitle>Acciones Rápidas</CardTitle>
+              <CardDescription>Accesos directos a funciones comunes</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button className="w-full justify-start" onClick={() => setActiveTab("payments")}>
+                <CreditCard className="mr-2 h-4 w-4" />
+                Generar nuevo Código
+              </Button>
+              <Button className="w-full justify-start" onClick={() => setActiveTab("routes")}>
+                <Route className="mr-2 h-4 w-4" />
+                Gestión de Rutas
+              </Button>
+              <Button className="w-full justify-start" onClick={() => setActiveTab("people")}>
+                <Users className="mr-2 h-4 w-4" />
+                Gestión de Personas
+              </Button>
+              <Button className="w-full justify-start" onClick={() => setActiveTab("prices")}>
+                <Settings className="mr-2 h-4 w-4" />
+                Configuración de precios
+              </Button>
+            </CardContent>
+          </Card> 
 
           {activeTab === "routes" && <RouteManagement />}
           {activeTab === "people" && <PersonManagement />}
           {activeTab === "payments" && <PaymentControl />}
-          {/*activeTab === "souvenirs" && <SouvenirControl />*/}
-          {/*activeTab === "export" && <DataExport />*/}
+          {activeTab === "manual" && <ManualRegistration />}
+          {activeTab === "souvenirs" && <SouvenirControl />}
+          {activeTab === "export" && <DataExport />}
           {activeTab === "prices" && <PriceSettings />}
+          {activeTab === "gallery" && <GalleryManagement />}
         </div>
       </div>
     </div>

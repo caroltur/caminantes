@@ -1,0 +1,100 @@
+[2025-06-26T01:15:48.730Z] Object "/functions" in "firebase.json" has unknown property: {"additionalProperty":"entryPoint"}
+[2025-06-26T01:15:48.731Z] Field "/functions" in "firebase.json" is possibly invalid: must be array
+[2025-06-26T01:15:48.732Z] Field "/functions" in "firebase.json" is possibly invalid: must match a schema in anyOf
+[2025-06-26T01:15:48.736Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[2025-06-26T01:15:48.737Z] > authorizing via signed-in user (freimanmq@gmail.com)
+[2025-06-26T01:15:48.737Z] [iam] checking project camineria-d4dac for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get","firebasehosting.sites.update"]
+[2025-06-26T01:15:48.739Z] Checked if tokens are valid: true, expires at: 1750901814779
+[2025-06-26T01:15:48.739Z] Checked if tokens are valid: true, expires at: 1750901814779
+[2025-06-26T01:15:48.741Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/camineria-d4dac:testIamPermissions [none]
+[2025-06-26T01:15:48.741Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/camineria-d4dac:testIamPermissions x-goog-quota-user=projects/camineria-d4dac
+[2025-06-26T01:15:48.742Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/camineria-d4dac:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get","firebasehosting.sites.update"]}
+[2025-06-26T01:15:49.327Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/camineria-d4dac:testIamPermissions 200
+[2025-06-26T01:15:49.327Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/camineria-d4dac:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get","firebasehosting.sites.update"]}
+[2025-06-26T01:15:49.328Z] Checked if tokens are valid: true, expires at: 1750901814779
+[2025-06-26T01:15:49.328Z] Checked if tokens are valid: true, expires at: 1750901814779
+[2025-06-26T01:15:49.328Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/camineria-d4dac/serviceAccounts/camineria-d4dac@appspot.gserviceaccount.com:testIamPermissions [none]
+[2025-06-26T01:15:49.329Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/camineria-d4dac/serviceAccounts/camineria-d4dac@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[2025-06-26T01:15:49.855Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/camineria-d4dac/serviceAccounts/camineria-d4dac@appspot.gserviceaccount.com:testIamPermissions 200
+[2025-06-26T01:15:49.856Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/camineria-d4dac/serviceAccounts/camineria-d4dac@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[2025-06-26T01:15:49.857Z] Checked if tokens are valid: true, expires at: 1750901814779
+[2025-06-26T01:15:49.857Z] Checked if tokens are valid: true, expires at: 1750901814779
+[2025-06-26T01:15:49.858Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/camineria-d4dac [none]
+[2025-06-26T01:15:50.311Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/camineria-d4dac 200
+[2025-06-26T01:15:50.311Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/camineria-d4dac {"projectId":"camineria-d4dac","projectNumber":"95656369310","displayName":"camineria","name":"projects/camineria-d4dac","resources":{"hostingSite":"camineria-d4dac","realtimeDatabaseInstance":"camineria-d4dac-default-rtdb"},"state":"ACTIVE","etag":"1_4e944b3e-2ee4-4087-a3c3-7c6c843ede17"}
+
+=== Deploying to 'camineria-d4dac'...
+
+i  deploying functions, hosting 
+[2025-06-26T01:15:50.321Z] Checked if tokens are valid: true, expires at: 1750901814779
+[2025-06-26T01:15:50.321Z] Checked if tokens are valid: true, expires at: 1750901814779
+[2025-06-26T01:15:50.322Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/camineria-d4dac [none]
+[2025-06-26T01:15:50.476Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/camineria-d4dac 200
+[2025-06-26T01:15:50.476Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/camineria-d4dac {"projectNumber":"95656369310","projectId":"camineria-d4dac","lifecycleState":"ACTIVE","name":"camineria","labels":{"firebase":"enabled","firebase-core":"disabled"},"createTime":"2025-06-06T05:11:53.783988Z"}
+i  functions: preparing codebase default for deployment 
+i  functions: ensuring required API cloudfunctions.googleapis.com is enabled... 
+i  functions: ensuring required API cloudbuild.googleapis.com is enabled... 
+i  artifactregistry: ensuring required API artifactregistry.googleapis.com is enabled... 
+[2025-06-26T01:15:50.482Z] Checked if tokens are valid: true, expires at: 1750901814779
+[2025-06-26T01:15:50.482Z] Checked if tokens are valid: true, expires at: 1750901814779
+[2025-06-26T01:15:50.482Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/camineria-d4dac/adminSdkConfig [none]
+[2025-06-26T01:15:50.891Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/camineria-d4dac/adminSdkConfig 200
+[2025-06-26T01:15:50.892Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/camineria-d4dac/adminSdkConfig {"projectId":"camineria-d4dac","databaseURL":"https://camineria-d4dac-default-rtdb.firebaseio.com","storageBucket":"camineria-d4dac.firebasestorage.app"}
+[2025-06-26T01:15:50.892Z] Checked if tokens are valid: true, expires at: 1750901814779
+[2025-06-26T01:15:50.893Z] Checked if tokens are valid: true, expires at: 1750901814779
+[2025-06-26T01:15:50.893Z] >>> [apiv2][query] GET https://runtimeconfig.googleapis.com/v1beta1/projects/camineria-d4dac/configs [none]
+[2025-06-26T01:15:51.315Z] <<< [apiv2][status] GET https://runtimeconfig.googleapis.com/v1beta1/projects/camineria-d4dac/configs 200
+[2025-06-26T01:15:51.316Z] <<< [apiv2][body] GET https://runtimeconfig.googleapis.com/v1beta1/projects/camineria-d4dac/configs {}
+[2025-06-26T01:15:51.320Z] Validating nodejs source
+[2025-06-26T01:15:52.879Z] > [functions] package.json contents: {
+  "name": "caminantes",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@firebasegen/default-connector": "file:dataconnect-generated/js/default-connector",
+    "@hookform/resolvers": "^5.0.1",
+    "@radix-ui/react-checkbox": "^1.3.2",
+    "@radix-ui/react-dialog": "^1.1.14",
+    "@radix-ui/react-label": "^2.1.7",
+    "@radix-ui/react-select": "^2.2.5",
+    "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-tabs": "^1.1.12",
+    "@supabase/ssr": "^0.6.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "firebase": "^11.9.0",
+    "firebase-frameworks": "0.11.7",
+    "firebase-functions": "^6.3.2",
+    "lucide-react": "^0.513.0",
+    "next": "15.2.4",
+    "next-themes": "^0.4.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-hook-form": "^7.57.0",
+    "sonner": "^2.0.5",
+    "tailwind-merge": "^3.3.0",
+    "zod": "^3.25.53"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.2.4",
+    "tailwindcss": "^4",
+    "tw-animate-css": "^1.3.4",
+    "typescript": "^5"
+  }
+}
+
+Error: There was an error reading /package.json:
+
+ index.js does not exist, can't deploy Cloud Functions

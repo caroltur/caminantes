@@ -44,6 +44,7 @@ type PriceSettings = {
   updated_at?: string; // Propiedad opcional para la fecha de actualización
 }
 
+
 export default function PriceSettings() {
   // --- CAMBIO: Eliminar la desestructuración de useToast ---
   // const { toast } = useToast() // ELIMINAR ESTA LÍNEA
@@ -51,6 +52,7 @@ export default function PriceSettings() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<string | null>(null)
+  const [cuposTotales, setCuposTotales] = useState(0)
 
   const form = useForm<z.infer<typeof priceSettingsSchema>>({
     resolver: zodResolver(priceSettingsSchema),
@@ -67,7 +69,20 @@ export default function PriceSettings() {
   })
 
   useEffect(() => {
+    const loadData = async () => {
+      
+      try {
+        const codesList = await firebaseClient.getAccessCodes()
+        const totalSpotss = codesList          
+          .reduce((acc, code) => acc + code.people_count, 0)
+          setCuposTotales(totalSpotss)
+      } catch (error) {
+        console.error("Error loading data:", error)
+      }
+    }
+    loadData()
     fetchSettings()
+
   }, [])
 
   // En fetchSettings:
@@ -368,22 +383,15 @@ export default function PriceSettings() {
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span>Pagos confirmados:</span>
-                  <span className="font-medium">98 personas</span>
+                  <span className="font-medium">{cuposTotales}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Ingresos totales:</span>
                   <span className="font-bold text-green-600">
-                    ${(98 * (form.watch("registration_price") || 0)).toLocaleString()} COP
+                    ${(cuposTotales * (form.watch("registration_price") || 0)).toLocaleString()} COP
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Pagos pendientes:</span>
-                  <span className="text-yellow-600">26 personas</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Ingresos potenciales:</span>
-                  <span className="text-gray-600">${(26 * (form.watch("registration_price") || 0)).toLocaleString()} COP</span>
-                </div>
+                
               </div>
             </CardContent>
           </Card>

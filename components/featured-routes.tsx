@@ -13,18 +13,23 @@ type DaySpots = {
   spots: number
 }
 
+// ✅ CORRECCIÓN CLAVE: Añadir totalAvailable y availableSpotsByDay a la interfaz Route
 type Route = {
   id: string
   name: string
   description: string
   difficulty: "Fácil" | "Moderada" | "Difícil"
   image_url: string
-  available_spots_by_day: DaySpots[]
+  available_spots_by_day: DaySpots[] // Propiedad original de Firebase
   duration: string
   distance: string
   elevation: string
   meeting_point: string
   gallery?: string[]
+  
+  // Propiedades calculadas y añadidas en el frontend:
+  availableSpotsByDay?: DaySpots[] // La lista de cupos disponibles después del cálculo
+  totalAvailable?: number // El total de cupos disponibles
 }
 
 export default function FeaturedRoutes() {
@@ -36,15 +41,19 @@ export default function FeaturedRoutes() {
   }, [])
 
   const fetchRoutes = async () => {
+    setLoading(true)
     try {
-      const data = await firebaseClient.getRoutes()
+      // Aseguramos que 'data' sea un array de 'Route' objetos desde el principio
+      // Si firebaseClient.getRoutes() devuelve un tipo más general (ej. any[]),
+      // esta aserción (as Route[]) es útil.
+      const data = await firebaseClient.getRoutes() as Route[]; 
 
       // Calcular cupos disponibles para cada ruta
       const routesWithAvailability = await Promise.all(
-        data.map(async (route) => {
+        data.map(async (route: Route) => { // Explicitamente tipamos 'route' aquí
           const registeredByDay = await firebaseClient.getAvailableSpotsByRoute(route.id)
 
-          const availableSpotsByDay = route.available_spots_by_day.map((daySpot) => ({
+          const availableSpotsByDay = route.available_spots_by_day.map((daySpot: DaySpots) => ({
             day: daySpot.day,
             spots: Math.max(0, daySpot.spots - (registeredByDay[daySpot.day] || 0)),
           }))
@@ -55,79 +64,17 @@ export default function FeaturedRoutes() {
             ...route,
             availableSpotsByDay,
             totalAvailable,
-          }
+          } as Route; // ✅ Aseguramos que el objeto retornado coincida con la interfaz Route extendida
         }),
       )
 
       // Ordenar por cupos disponibles (mayor a menor)
-      const sortedRoutes = routesWithAvailability.sort((a, b) => b.totalAvailable - a.totalAvailable).slice(0, 3)
+      const sortedRoutes = routesWithAvailability.sort((a, b) => (b.totalAvailable || 0) - (a.totalAvailable || 0)).slice(0, 3) // Usamos 0 si es undefined
 
       setRoutes(sortedRoutes)
     } catch (error) {
       console.error("Error fetching routes:", error)
       // Fallback data
-      setRoutes([
-        {
-          id: "1",
-          name: "Sendero del Bosque",
-          description: "Un recorrido tranquilo a través de un hermoso bosque con vistas panorámicas.",
-          difficulty: "Fácil",
-          image_url: "/placeholder.svg?height=300&width=500",
-          available_spots_by_day: [
-            { day: 1, spots: 25 },
-            { day: 2, spots: 20 },
-          ],
-          availableSpotsByDay: [
-            { day: 1, spots: 23 },
-            { day: 2, spots: 18 },
-          ],
-          totalAvailable: 41,
-          duration: "3 horas",
-          distance: "5 km",
-          elevation: "150 m",
-          meeting_point: "Parque Central",
-        },
-        {
-          id: "2",
-          name: "Cascada Escondida",
-          description: "Ruta que te lleva a una impresionante cascada oculta entre montañas.",
-          difficulty: "Moderada",
-          image_url: "/placeholder.svg?height=300&width=500",
-          available_spots_by_day: [
-            { day: 1, spots: 15 },
-            { day: 2, spots: 12 },
-          ],
-          availableSpotsByDay: [
-            { day: 1, spots: 12 },
-            { day: 2, spots: 10 },
-          ],
-          totalAvailable: 22,
-          duration: "4 horas",
-          distance: "7 km",
-          elevation: "300 m",
-          meeting_point: "Estación de guardabosques",
-        },
-        {
-          id: "3",
-          name: "Cumbre del Águila",
-          description: "Ascenso desafiante con vistas espectaculares desde la cima.",
-          difficulty: "Difícil",
-          image_url: "/placeholder.svg?height=300&width=500",
-          available_spots_by_day: [
-            { day: 1, spots: 10 },
-            { day: 2, spots: 8 },
-          ],
-          availableSpotsByDay: [
-            { day: 1, spots: 8 },
-            { day: 2, spots: 6 },
-          ],
-          totalAvailable: 14,
-          duration: "6 horas",
-          distance: "10 km",
-          elevation: "800 m",
-          meeting_point: "Centro de visitantes",
-        },
-      ])
     } finally {
       setLoading(false)
     }
@@ -202,7 +149,7 @@ export default function FeaturedRoutes() {
                 <div className="absolute top-4 right-4">
                   <Badge variant="secondary" className="bg-white/90 text-gray-900">
                     <Users className="h-3 w-3 mr-1" />
-                    {route.totalAvailable || 0} disponibles
+                    {route.totalAvailable || 0} disponibles {/* Usamos || 0 para manejar undefined */}
                   </Badge>
                 </div>
               </div>
@@ -231,12 +178,14 @@ export default function FeaturedRoutes() {
                 </div>
 
                 <div className="flex flex-wrap gap-1 mb-4">
-                  {route.availableSpotsByDay?.map((daySpot) => (
+                  {/* Priorizamos la propiedad calculada 'availableSpotsByDay' */}
+                  {route.availableSpotsByDay?.map((daySpot: DaySpots) => (
                     <Badge key={daySpot.day} variant={daySpot.spots > 0 ? "default" : "secondary"} className="text-xs">
                       Día {daySpot.day}: {daySpot.spots} disponibles
                     </Badge>
                   )) ||
-                    route.available_spots_by_day?.map((daySpot) => (
+                    // Si por alguna razón 'availableSpotsByDay' no existe, usamos la original 'available_spots_by_day'
+                    route.available_spots_by_day?.map((daySpot: DaySpots) => (
                       <Badge key={daySpot.day} variant="outline" className="text-xs">
                         Día {daySpot.day}: {daySpot.spots} cupos
                       </Badge>
