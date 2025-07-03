@@ -70,8 +70,8 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
-              <h3 className="text-xl font-bold mb-4">Evento Caminera</h3>
-              <p>Disfruta de la naturaleza y vive una experiencia inolvidable en nuestras rutas.</p>
+              <h3 className="text-xl font-bold mb-4">III Encuentro Departamental de Caminantes Villamaría Caldas</h3>
+              <p>Camina, ven y descubre los encantos de Villamaría.</p>
             </div>
             <div>
               <h3 className="text-xl font-bold mb-4">Enlaces</h3>
@@ -100,12 +100,12 @@ export default function Home() {
             </div>
             <div>
               <h3 className="text-xl font-bold mb-4">Contacto</h3>
-              <p>Email: info@eventocaminera.com</p>
-              <p>Teléfono: +57 300 123 4567</p>
+              <p>Email: polocheguzmanmariairene@gmail.com</p>
+              <p>Teléfono: 3147015887</p>
             </div>
           </div>
           <div className="border-t border-green-700 mt-8 pt-4 text-center">
-            <p>&copy; {new Date().getFullYear()} Evento Caminera. Todos los derechos reservados.</p>
+            <p>&copy; {new Date().getFullYear()} Todos los derechos reservados.</p>
           </div>
         </div>
       </footer>
