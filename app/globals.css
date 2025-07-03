@@ -134,3 +134,26 @@
      2px  2px 0 rgb(255, 255, 255); /* Abajo derecha */
     /* Para un borde más grueso, puedes añadir más sombras */
 }
+.LogoResponsib {
+  background-image: url(/logo.png);
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+
+}
+@media (max-width: 768px) {
+.LogoResponsib{
+  background-image: url(/logomovil.jpeg);
+}
+
+.texto-resaltado {
+  color: rgba(0, 0, 0, 0); /* Color del relleno del texto */
+  text-shadow:
+    -2px -2px 0 rgba(238, 238, 238, 0), /* Arriba izquierda */
+     2px -2px 0 rgba(255, 255, 255, 0), /* Arriba derecha */
+    -2px  2px 0 rgba(255, 255, 255, 0), /* Abajo izquierda */
+     2px  2px 0 rgba(255, 255, 255, 0); /* Abajo derecha */
+    /* Para un borde más grueso, puedes añadir más sombras */
+}
+
+}
