@@ -24,59 +24,79 @@ export default function EventSchedule() {
 
   const fetchSchedule = async () => {
     try {
-      const data = await firebaseClient.getEventSchedule()
-      setScheduleItems(data)
-    } catch (error) {
-      console.error("Error fetching schedule:", error)
-      // Fallback data
+      
       setScheduleItems([
         {
           id: "1",
-          day: "Día 1",
-          time: "06:00 AM",
-          title: "Punto de encuentro",
-          description: "Reunión en el punto de partida, registro de asistentes y entrega de kit de bienvenida.",
+          day: "Viernes 31 de Octubre",
+          time: "07:00 AM a 2:00 PM",
+          title: "Llegada de participantes",
+          description: "Llegada de participantes.",
           order: 1,
         },
         {
           id: "2",
-          day: "Día 1",
-          time: "06:30 AM",
-          title: "Inicio de la caminata",
-          description: "Charla de seguridad y comienzo del recorrido por la ruta seleccionada.",
+          day: "Viernes 31 de Octubre",
+          time: "3:00 PM",
+          title: "Desfile por Villamaría",
+          description: "Recorrido tipo desfile por Villamaría con secretaría de cultura.",
           order: 2,
         },
         {
           id: "3",
-          day: "Día 1",
-          time: "08:30 AM",
-          title: "Parada para refrigerio",
-          description: "Descanso para hidratación y refrigerio ligero.",
+          day: "Viernes 31 de Octubre",
+          time: "5:00 PM",
+          title: "Eucaristía",
+          description: "Eucaristía de recibimiento con bendición de bastones.",
           order: 3,
         },
         {
           id: "4",
-          day: "Día 1",
-          time: "12:00 PM",
-          title: "Almuerzo",
-          description: "Parada para almuerzo en un punto panorámico de la ruta.",
+          day: "Viernes 31 de Octubre",
+          time: "6:00 PM",
+          title: "Entrega de souvenirs",
+          description: "Entrega de souvenirs sede salón parroquial.",
           order: 4,
         },
         {
           id: "5",
-          day: "Día 1",
-          time: "03:00 PM",
-          title: "Llegada al punto final",
-          description: "Finalización del recorrido, entrega de souvenirs y fotografía grupal.",
+          day: "Sábado 1 de Noviembre",
+          time: "5:00 AM a 8:00 AM",
+          title: "Salida de recorrido según el grado de dificultad",
+          description: "Salida de recorrido según el grado de dificultad.",
           order: 5,
         },
         {
           id: "6",
-          day: "Día 2",
-          time: "07:00 AM",
-          title: "Segundo día de aventura",
-          description: "Inicio del segundo día con nuevas rutas y experiencias.",
+          day: "Sábado 1 de Noviembre",
+          time: "1:00 PM a 7:00 PM",
+          title: "Llegada de las caminatas",
+          description: "Llegada de las caminatas.",
           order: 6,
+        },
+        {
+          id: "7",
+          day: "Domingo 2 de Noviembre",
+          time: "5:00 AM a 8:00 AM",
+          title: "Salida de recorrido según el grado de dificultad",
+          description: "Salida de recorrido según el grado de dificultad.",
+          order: 7,
+        },
+        {
+          id: "8",
+          day: "Domingo 2 de Noviembre",
+          time: "1:00 PM a 7:00 PM",
+          title: "Llegada de las caminatas",
+          description: "Llegada de las caminatas.",
+          order: 8,
+        },
+        {
+          id: "9",
+          day: "Lunes 3 de Noviembre",
+          time: "",
+          title: "Regreso de caminantes a sus lugares de origen",
+          description: "Regreso de caminantes a sus lugares de origen.",
+          order: 9,
         },
       ])
     } finally {

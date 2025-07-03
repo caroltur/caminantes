@@ -123,3 +123,14 @@
 .bg-black{
   background-color: rgba(0, 0, 0, 0.438);
 }
+
+
+.texto-resaltado {
+  color: black; /* Color del relleno del texto */
+  text-shadow:
+    -2px -2px 0 rgb(238, 238, 238), /* Arriba izquierda */
+     2px -2px 0 rgb(255, 255, 255), /* Arriba derecha */
+    -2px  2px 0 rgb(255, 255, 255), /* Abajo izquierda */
+     2px  2px 0 rgb(255, 255, 255); /* Abajo derecha */
+    /* Para un borde más grueso, puedes añadir más sombras */
+}

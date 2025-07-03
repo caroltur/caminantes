@@ -9,10 +9,10 @@ import ReservationInfo from "@/components/reservation-info"
 export default function Home() {
   return (
     <div className="min-h-screen">
-      <header className="bg-white shadow-sm sticky top-0 z-10">
+      <header className="bg-white shadow-sm sticky top-0 z-10" style={{zIndex: 1000}}>
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <Link href="/" className="text-2xl font-bold text-green-700">
-            Evento Caminera
+            Villamaría Caldas
           </Link>
           <nav className="hidden md:flex space-x-6">
             <Link href="/#rutas" className="text-gray-600 hover:text-green-700">
@@ -39,10 +39,7 @@ export default function Home() {
 
         <section id="rutas" className="py-16 bg-gray-50">
           <div className="container mx-auto px-4">
-            <div className="flex items-center mb-8">
-              <MapPin className="w-6 h-6 text-green-700 mr-2" />
-              <h2 className="text-3xl font-bold">Rutas Disponibles</h2>
-            </div>
+            
             <FeaturedRoutes />
             
           </div>
