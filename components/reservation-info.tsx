@@ -183,7 +183,7 @@ export default function ReservationInfo() {
                 <span className="font-medium">{settings.account_holder}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Cc:</span>
+                <span className="text-gray-600">Cédula:</span>
                 <span className="font-medium">{settings.nit}</span>
               </div>
             </div>
