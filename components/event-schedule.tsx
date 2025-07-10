@@ -98,6 +98,7 @@ export default function EventSchedule() {
           description: "Regreso de caminantes a sus lugares de origen.",
           order: 9,
         },
+        
       ])
     } finally {
       setLoading(false)
@@ -171,6 +172,30 @@ export default function EventSchedule() {
           </CardContent>
         </Card>
       ))}
+      <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out">
+  <CardHeader className="bg-gradient-to-r from-red-500 to-orange-500 text-white p-4 rounded-t-lg">
+    <h1 className="text-xl font-bold">Otra Programación</h1>
+  </CardHeader>
+  <CardContent className="p-4 flex flex-col items-center justify-center">
+    <div className="space-y-4 text-center">
+      <p className="text-gray-700 mb-4">
+        Descubre emocionantes ofertas de actividades y rutas con otros operadores turísticos.
+        ¡Amplía tus opciones de aventura!
+      </p>
+      {/* El enlace ahora apunta a una URL externa específica */}
+      <a
+        href="https://drive.google.com/file/d/1YF1ZaoeRs5T3HPb-XOWDk5QuGX61Pngo/view?usp=sharing" // <--- CAMBIA ESTA URL POR LA REAL
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-full transition-colors duration-300 ease-in-out transform hover:scale-105"
+      >
+        Ver Ofertas de Otros Operadores
+      </a>
     </div>
+  </CardContent>
+</Card>
+      
+    </div>
+    
   )
 }
