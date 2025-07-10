@@ -174,7 +174,7 @@ export default function RouteDetailPage() {
               <div className="grid grid-cols-2 gap-4 mt-6">
                 <div className="flex items-center gap-2">
                   <Clock className="h-5 w-5 text-gray-500" />
-                  <span>{route.duration}</span>
+                  <span>{route.duration} Horas</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <MapPin className="h-5 w-5 text-gray-500" />
@@ -182,11 +182,11 @@ export default function RouteDetailPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Ruler className="h-5 w-5 text-gray-500" />
-                  <span>{route.distance}</span>
+                  <span>{route.distance} Km</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Mountain className="h-5 w-5 text-gray-500" />
-                  <span>{route.elevation}</span>
+                  <span>{route.elevation} metros</span>
                 </div>
               </div>
             </TabsContent>
