@@ -166,7 +166,7 @@ export default function RouteDetailPage() {
             <TabsList className="mb-4">
               <TabsTrigger value="descripcion">Descripción</TabsTrigger>
               <TabsTrigger value="galeria">
-                <a href={route.gallery} rel="noopener noreferrer">Galería</a>
+                <a href={route.gallery} target="_blank" rel="noopener noreferrer">Galería</a>
               </TabsTrigger>
             </TabsList>
             <TabsContent value="descripcion" className="space-y-4">
