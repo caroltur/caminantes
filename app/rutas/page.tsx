@@ -235,13 +235,13 @@ export default function RoutesPage() {
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center text-sm text-gray-500">
                       <Clock className="h-4 w-4 mr-2" />
-                      <span>{route.duration}</span>
+                      <span>{route.duration} Horas</span>
                       <span className="mx-2">•</span>
-                      <span>{route.distance}</span>
+                      <span>{route.distance} Km</span>
                     </div>
                     <div className="flex items-center text-sm text-gray-500">
                       <Mountain className="h-4 w-4 mr-2" />
-                      <span>Elevación: {route.elevation}</span>
+                      <span>Elevación: {route.elevation} metros</span>
                     </div>
                     <div className="flex items-center text-sm text-gray-500">
                       <MapPin className="h-4 w-4 mr-2" />

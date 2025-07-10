@@ -161,15 +161,15 @@ export default function FeaturedRoutes() {
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center text-sm text-gray-500">
                     <Clock className="h-4 w-4 mr-2 flex-shrink-0" />
-                    <span>Duración aproximada: {route.duration}</span>
+                    <span>Duración aproximada: {route.duration} Horas</span>
                   </div>
                   <div className="flex items-center text-sm text-gray-500">
                     <Ruler className="h-4 w-4 mr-2 flex-shrink-0" />
-                    <span>Distancia: {route.distance}</span>
+                    <span>Distancia: {route.distance} Km</span>
                   </div>
                   <div className="flex items-center text-sm text-gray-500">
                     <Mountain className="h-4 w-4 mr-2 flex-shrink-0" />
-                    <span>Elevación: {route.elevation}</span>
+                    <span>Elevación: {route.elevation} metros</span>
                   </div>
                   <div className="flex items-center text-sm text-gray-500">
                     <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
