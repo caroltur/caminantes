@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { toast } from "sonner"
-import { Loader2, CheckCircle, AlertCircle } from "lucide-react"
+import { Loader2, CheckCircle} from "lucide-react"
 
 interface AccessCode {
   id: string;
@@ -166,6 +166,7 @@ export default function InscripcionPage() {
         const existingRegistration = await firebaseClient.getRegistrationByDocument(documentId)
   
         if (existingRegistration) {
+          console.log("Registro existente encontrado:", existingRegistration)
           // Si existe, precargar datos
           
           form.reset({
@@ -192,6 +193,7 @@ export default function InscripcionPage() {
             toast.info("Esta persona ya está registrada. Puedes actualizar tu información.")
           }
         } else {
+          console.log("No existe el registro");
           // Es nuevo o no tiene registro aún
           setVerificationStep(accessCode.is_group ? "group_leader" : "individual")
           toast.success("Código verificado correctamente")
@@ -344,7 +346,7 @@ export default function InscripcionPage() {
       }
   
       // 5. Actualizar la inscripción en Firebase
-      await firebaseClient.updateRegistration(existingRegistration.id, updatedData)
+      await firebaseClient.updateRegistration(formData.document_id, updatedData)
   
       // 6. Actualizar cupos si cambiaron las rutas
       const changes: { day: number; from?: string | null; to?: string | null }[] = []
@@ -379,7 +381,7 @@ export default function InscripcionPage() {
       }
   
       // 8. Recargar página o redirigir si es necesario
-      router.refresh()
+      window.location.reload()
   
     } catch (error) {
       console.error("Error al actualizar inscripción:", error)
@@ -817,11 +819,15 @@ export default function InscripcionPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {routes.map((route) => (
-                              <SelectItem key={route.id} value={route.id}>
-                                {route.name}
-                              </SelectItem>
-                            ))}
+                            {routes
+                                .filter((route) =>
+                                  route.available_spots_by_day.some((d) => d.day === 1 && d.spots > 0)
+                                )
+                                .map((route) => (
+                                  <SelectItem key={route.id} value={route.id}>
+                                    {route.name}
+                                  </SelectItem>
+                                ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -842,11 +848,15 @@ export default function InscripcionPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {routes.map((route) => (
-                              <SelectItem key={route.id} value={route.id}>
-                                {route.name}
-                              </SelectItem>
-                            ))}
+                            {routes
+                                  .filter((route) =>
+                                    route.available_spots_by_day.some((d) => d.day === 2 && d.spots > 0)
+                                  )
+                                  .map((route) => (
+                                    <SelectItem key={route.id} value={route.id}>
+                                      {route.name}
+                                    </SelectItem>
+                                  ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />

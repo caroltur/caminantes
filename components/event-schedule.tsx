@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Clock, Calendar } from "lucide-react"
-import { firebaseClient } from "@/lib/firebase/client"
 
 type ScheduleItem = {
   id: string
