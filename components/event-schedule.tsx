@@ -194,6 +194,29 @@ export default function EventSchedule() {
     </div>
   </CardContent>
 </Card>
+
+
+<Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out">
+  <CardHeader className="bg-gradient-to-r from-blue-500 to-green-500 text-white p-4 rounded-t-lg">
+    <h1 className="text-xl font-bold">Listado de Hoteles</h1>
+  </CardHeader>
+  <CardContent className="p-4 flex flex-col items-center justify-center">
+    <div className="space-y-4 text-center">
+      <p className="text-gray-700 mb-4">
+        Explora nuestra selección de hoteles en Villamaría para una estadía cómoda y placentera.
+      </p>
+      {/* El enlace ahora apunta a una URL externa específica */}
+      <a
+        href="https://docs.google.com/spreadsheets/d/1tkrWui641KKwvoSQV01iyRlysVZK9PHmQ-yy7OlWD7c/edit?usp=sharing" // <--- CAMBIA ESTA URL POR LA REAL
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-full transition-colors duration-300 ease-in-out transform hover:scale-105"
+      >
+        Ver Hoteles Disponibles
+      </a>
+    </div>
+  </CardContent>
+</Card>
       
     </div>
     

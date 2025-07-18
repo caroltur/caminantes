@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, MapPin, Calendar, Users } from "lucide-react"
+import {  Calendar, Users } from "lucide-react"
 import HeroSection from "@/components/hero-section"
 import FeaturedRoutes from "@/components/featured-routes"
 import EventSchedule from "@/components/event-schedule"

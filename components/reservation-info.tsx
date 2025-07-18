@@ -152,6 +152,7 @@ export default function ReservationInfo() {
               </div>
             </div>
           </div>
+          
         </CardContent>
       </Card>
 
@@ -215,6 +216,23 @@ export default function ReservationInfo() {
                 la consignación.
               </li>
               <li>Sin el comprobante de pago y la información solicitada, no podremos procesar tu inscripción.</li>
+            </ul>
+          </div>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <h3 className="font-semibold flex items-center mb-2">
+              <CheckCircle className="mr-2 h-4 w-4 text-red-700" />
+              Incluye
+            </h3>
+            <ul className="text-red-800 text-sm space-y-1 list-disc list-inside">
+              <li>
+                SEGURO contra accidentes los dos días de caminata.
+              </li>
+              <li>
+                Transporte rural.
+              </li>
+              <li>Refrigerios.</li>
+              <li>Souvenir.</li>
+              <li>Guianza.</li>
             </ul>
           </div>
         </CardContent>
