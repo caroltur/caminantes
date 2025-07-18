@@ -106,31 +106,39 @@ export default function InscripcionPage() {
   }, [])
 
   const fetchRoutes = async () => {
-    try {
-      const routesData = await firebaseClient.getRoutes()
-      const routesWithAvailability = await Promise.all(
-        routesData.map(async (route) => {
-          //const availableSpotsTemplate = route.available_spots_by_day || [];
-          const availableSpotsTemplate = route.available_spots_by_day || []; 
-          const registeredByDay = await firebaseClient.getAvailableSpotsByRoute(route.id)
-          const availableSpotsByDay = availableSpotsTemplate.map((daySpot: { day: number; spots: number }) => ({
+  try {
+    const routesData = await firebaseClient.getRoutes()
+    const routesWithAvailability = await Promise.all(
+      routesData.map(async (route) => {
+        const availableSpotsTemplate = route.available_spots_by_day || []
+        const registeredByDay = await firebaseClient.getAvailableSpotsByRoute(route.id)
+
+        // Calcular cupos disponibles por día
+        const availableSpotsByDay = availableSpotsTemplate
+          .map((daySpot: { day: number; spots: number }) => ({
             day: daySpot.day,
             spots: Math.max(0, daySpot.spots - (registeredByDay[daySpot.day] || 0)),
           }))
-          return {
-            ...route,
-            available_spots_by_day: availableSpotsByDay,
-          }
-        }),
-      )
-      setRoutes(routesWithAvailability)
-    } catch (error) {
-      console.error("Error fetching routes:", error)
-      toast.error("Error al cargar las rutas")
-    } finally {
-      //setLoadingRoutes(false)
-    }
+          .filter((daySpot) => daySpot.spots > 0) // Solo días con cupos
+
+        // Si no hay días con cupos, no incluir la ruta
+        if (availableSpotsByDay.length === 0) return null
+
+        return {
+          ...route,
+          available_spots_by_day: availableSpotsByDay,
+        }
+      }),
+    )
+
+    // Filtrar rutas nulas (sin cupos)
+    const validRoutes = routesWithAvailability.filter((route) => route !== null)
+    setRoutes(validRoutes)
+  } catch (error) {
+    console.error("Error fetching routes:", error)
+    toast.error("Error al cargar las rutas")
   }
+}
 
   // Verificar código de acceso
   const handleVerification = async () => {
@@ -620,11 +628,15 @@ export default function InscripcionPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {routes.map((route) => (
-                                <SelectItem key={route.id} value={route.id}>
-                                  {route.name}
-                                </SelectItem>
-                              ))}
+                              {routes
+                                .filter((route) =>
+                                  route.available_spots_by_day.some((d) => d.day === 1 && d.spots > 0)
+                                )
+                                .map((route) => (
+                                  <SelectItem key={route.id} value={route.id}>
+                                    {route.name}
+                                  </SelectItem>
+                                ))}
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -645,11 +657,15 @@ export default function InscripcionPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {routes.map((route) => (
-                                <SelectItem key={route.id} value={route.id}>
-                                  {route.name}
-                                </SelectItem>
-                              ))}
+                               {routes
+                                  .filter((route) =>
+                                    route.available_spots_by_day.some((d) => d.day === 2 && d.spots > 0)
+                                  )
+                                  .map((route) => (
+                                    <SelectItem key={route.id} value={route.id}>
+                                      {route.name}
+                                    </SelectItem>
+                                  ))}
                             </SelectContent>
                           </Select>
                           <FormMessage />
