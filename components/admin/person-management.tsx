@@ -10,12 +10,17 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Search, Filter, Eye, Download } from "lucide-react"
 import { firebaseClient } from "@/lib/firebase/client"
+import * as XLSX from "xlsx";
 
 // 1. Define una interfaz común para las rutas
 interface Route {
-  id: string; // ✅ ID debe ser string
+  id: string;
   name: string;
-  // Aquí puedes añadir otras propiedades de Route si las tienes
+}
+
+interface Group {
+  id: string;
+  group_name: string;
 }
 
 // 2. Modifica el tipo 'Person'
@@ -23,12 +28,12 @@ type Person = {
   id: string; // ✅ ID debe ser string
   full_name: string;
   document_id: string;
-  email: string;
   phone: string;
   rh?: string | null; // ✅ Añadido, ya que se usa en el diálogo
   route_name: string; // Nombre de la ruta, no el ID
   route_id_day1?: string | null; // ✅ Añadido, ya que se usa con getRouteName
   route_id_day2?: string | null; // ✅ Añadido, ya que se usa con getRouteName
+  group_id?: string | null; // Añadido para manejar grupos
   registration_type: "individual" | "group_leader" | "group_member" | "staff";
   payment_status: "pending" | "paid";
   souvenir_status: "pending" | "delivered";
@@ -47,15 +52,17 @@ export default function PersonManagement() {
   const [routes, setRoutes] = useState<Route[]>([])
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  const [groups, setGroups] = useState<Group[]>([]); 
 
   useEffect(() => {
     fetchPeople()
     fetchRoutes()
+    fetchGroups();
   }, [])
 
   useEffect(() => {
     applyFilters()
-  }, [searchTerm, routeFilter, statusFilter, people])
+  }, [searchTerm, routeFilter, statusFilter, people, groups])
 
   const fetchPeople = async () => {
     setLoading(true)
@@ -94,6 +101,14 @@ export default function PersonManagement() {
       console.error("Error fetching routes:", error)
     }
   }
+  const fetchGroups = async () => {
+    try {
+      const data = await firebaseClient.getGroups();
+      setGroups(data);
+    } catch (error) {
+      console.error("Error fetching groups:", error);
+    }
+  };
 
   const applyFilters = () => {
     let result = [...people]
@@ -188,9 +203,7 @@ export default function PersonManagement() {
     }
   }
 
-  const exportToExcel = () => {
-    alert("Esta función aún no está implementada. Pronto estará disponible.")
-  }
+  
 
   // ✅ Este useEffect está duplicado y debería ser eliminado o fusionado con el primero.
   // La llamada a 'fetchRoutes' ya se hace en el primer useEffect.
@@ -214,6 +227,56 @@ export default function PersonManagement() {
       const route = routes.find((r) => r.id === routeId) // ✅ r.id (string) === routeId (string)
       return route?.name || "Ruta desconocida"
     }
+    const getGroupName = (groupId: string | undefined | null): string => {
+      console.log("getGroupName called with groupId:", groupId); // Añadido para depuración
+      console.log("Available groups:", groups); // Añadido para depuración
+    if (!groupId) return "-";
+    const group = groups.find((g) => g.id === groupId);
+    console.log("Found group:", group?.group_name||" no encontrado"); // Añadido para depuración
+    return group?.group_name || "Independiente";
+  };
+    const exportToExcel = () => {
+    // 1. Prepara los datos a exportar
+    const dataForExport = filteredPeople.map(person => ({
+      "Nombre Completo": person.full_name,
+      "Cédula": person.document_id,
+      "Teléfono": person.phone,
+      "RH": person.rh || "-",
+      "Ruta Día 1": getRouteName(person.route_id_day1),
+      "Ruta Día 2": getRouteName(person.route_id_day2),
+      "Grupo": getGroupName(person.group_id)|| "-",
+    }));
+
+     const dataRutas = filteredPeople.map(person => ({
+      "Nombre": person.full_name,
+      "Documento": person.document_id,
+      "Ruta Día 1": getRouteName(person.route_id_day1),
+      "Ruta Día 2": getRouteName(person.route_id_day2),
+    }));
+
+    // 3. Preparar los datos para la hoja "Seguros"
+    const dataSeguros = filteredPeople.map(person => ({
+      "Nombre": person.full_name,
+      "Cédula": person.document_id,
+    }));
+
+    // 2. Crea la hoja de cálculo a partir del JSON
+    const workbook = XLSX.utils.book_new();
+
+    const worksheetParticipantes = XLSX.utils.json_to_sheet(dataForExport);
+    XLSX.utils.book_append_sheet(workbook, worksheetParticipantes, "Participantes");
+
+    const worksheetRutas = XLSX.utils.json_to_sheet(dataRutas);
+    XLSX.utils.book_append_sheet(workbook, worksheetRutas, "Rutas");
+
+    // 7. Crear y adjuntar la hoja "Seguros"
+    const worksheetSeguros = XLSX.utils.json_to_sheet(dataSeguros);
+    XLSX.utils.book_append_sheet(workbook, worksheetSeguros, "Seguros");
+    
+
+    // 4. Escribe el archivo Excel y dispara la descarga
+    XLSX.writeFile(workbook, "participantes.xlsx");
+    };
 
   return (
     <div className="space-y-6">
