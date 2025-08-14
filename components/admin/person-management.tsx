@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
+
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Search, Filter, Eye, Download } from "lucide-react"
 import { firebaseClient } from "@/lib/firebase/client"
@@ -152,56 +152,9 @@ export default function PersonManagement() {
     setFilteredPeople(result)
   }
 
-  const getStatusBadge = (person: Person) => {
-    if (person.registration_type === "staff") {
-      return <Badge className="bg-purple-500">Staff</Badge>
-    }
+  
 
-    if (person.payment_status === "pending") {
-      return (
-        <Badge variant="outline" className="border-yellow-500 text-yellow-500">
-          Pendiente de pago
-        </Badge>
-      )
-    }
-
-    if (person.payment_status === "paid" && person.souvenir_status === "pending") {
-      return <Badge className="bg-blue-500">Pagado</Badge>
-    }
-
-    if (person.payment_status === "paid" && person.souvenir_status === "delivered") {
-      return <Badge className="bg-green-500">Souvenir entregado</Badge>
-    }
-
-    return <Badge variant="outline">Desconocido</Badge>
-  }
-
-  const getRegistrationTypeBadge = (type: string) => {
-    switch (type) {
-      case "individual":
-        return <Badge variant="outline">Individual</Badge>
-      case "group_leader":
-        return (
-          <Badge variant="outline" className="border-blue-500 text-blue-500">
-            Líder de grupo
-          </Badge>
-        )
-      case "group_member":
-        return (
-          <Badge variant="outline" className="border-blue-300 text-blue-500">
-            Miembro de grupo
-          </Badge>
-        )
-      case "staff":
-        return (
-          <Badge variant="outline" className="border-purple-500 text-purple-500">
-            Staff
-          </Badge>
-        )
-      default:
-        return <Badge variant="outline">Desconocido</Badge>
-    }
-  }
+  
 
   
 
@@ -459,12 +412,7 @@ export default function PersonManagement() {
                 </div>
               )}
               {/* ✅ 'email' en Person, pero no se muestra en el diálogo. Puedes añadirlo si es necesario. */}
-              {selectedPerson.email && (
-                 <div>
-                    <p className="text-sm text-gray-500">Email</p>
-                    <p className="font-medium">{selectedPerson.email}</p>
-                 </div>
-              )}
+              
             </div>
           )}
         </DialogContent>
